@@ -414,7 +414,7 @@ async def handle_qr_scan(message: Message, payload: dict):
 async def handle_geo_stream(message: Message, payload: dict):
     """
     Live-трансляция геопозиции через watchPosition.
-    Мы только логируем и сохраняем последнюю позицию в attendances.extra при необходимости.
+    Сейчас мы просто логируем входящие координаты для диагностики.
     """
     lat = payload.get("lat")
     lon = payload.get("lon")
