@@ -596,6 +596,11 @@ async def handle_speaker_open_lecture(message: Message, payload: dict):
         await message.answer("⚠ Не указан ID лекции.")
         return
 
+    user_role = await get_user_role(user_id)
+    if user_id not in MASTER_ADMIN_IDS and user_role not in ("speaker", "admin"):
+        await message.answer("🚫 Только спикер или мастер-админ может открывать лекцию.")
+        return
+
     db = await get_db()
     try:
         await db.execute(
