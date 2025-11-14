@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import os
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from datetime import datetime
 
 import aiosqlite
@@ -65,6 +66,22 @@ router = Router()
 # -----------------------------
 #  ВСПОМОГАТЕЛЬНОЕ
 # -----------------------------
+
+
+def build_webapp_url(base_url: str, params: dict[str, str]) -> str:
+    """Добавляет или заменяет query-параметры в URL мини-аппы."""
+
+    parsed = urlparse(base_url)
+    existing = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    for key, value in params.items():
+        if value is None:
+            continue
+        existing[key] = value
+
+    new_query = urlencode(existing)
+    return urlunparse(parsed._replace(query=new_query))
+
+
 def now_iso() -> str:
     return datetime.utcnow().isoformat(timespec="seconds")
 
@@ -267,13 +284,32 @@ async def get_user_role(telegram_id: int) -> str:
 async def cmd_start(message: Message):
     await ensure_user(message)
 
+    role = await get_user_role(message.from_user.id)
+    role = role or "student"
+
+    role_map = {
+        "student": ("student", ["student"]),
+        "speaker": ("speaker", ["student", "speaker"]),
+        "admin": ("admin", ["student", "speaker", "admin"]),
+        "rating": ("rating", ["student"]),
+    }
+
+    role_param, allowed_panels = role_map.get(role, role_map["student"])
+    webapp_url = build_webapp_url(
+        WEBAPP_URL,
+        {
+            "role": role_param,
+            "panels": ",".join(allowed_panels),
+        },
+    )
+
     kb = ReplyKeyboardMarkup(
         resize_keyboard=True,
         keyboard=[
             [
                 KeyboardButton(
                     text="Открыть мини-аппу",
-                    web_app=WebAppInfo(url=WEBAPP_URL),
+                    web_app=WebAppInfo(url=webapp_url),
                 )
             ]
         ],
@@ -282,8 +318,8 @@ async def cmd_start(message: Message):
     await message.answer(
         (
             "Привет! Это бот для отметки посещаемости.\n\n"
-            "Нажми кнопку <b>«Открыть мини-аппу»</b>, чтобы запустить интерфейс "
-            "студента/спикера/мастер-админа."
+            "Нажми кнопку <b>«Открыть мини-аппу»</b>, чтобы запустить интерфейс,"
+            " который покажет разделы согласно твоей роли."
         ),
         reply_markup=kb,
     )

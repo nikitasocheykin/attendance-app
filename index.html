@@ -44,6 +44,7 @@
 
     <!-- ROLE SWITCHER -->
     <nav
+      id="roleSwitcher"
       class="grid grid-cols-3 gap-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-1 mb-4 text-xs font-semibold"
     >
       <button
@@ -357,26 +358,126 @@
     // ------------------------------
     //  БАЗОВАЯ ИНИЦИАЛИЗАЦИЯ
     // ------------------------------
-    const tg = window.Telegram?.WebApp;
-
-    if (tg) {
-      tg.ready();
-      tg.expand();
+    let tg = null;
+    if (window.Telegram && window.Telegram.WebApp) {
+      tg = window.Telegram.WebApp;
+      try {
+        tg.ready();
+        tg.expand();
+      } catch (err) {
+        console.warn("Telegram WebApp init error", err);
+      }
+    } else {
+      console.warn("Telegram WebApp API is not available");
     }
+
+    const tgInitData = tg && typeof tg.initDataUnsafe === "object" ? tg.initDataUnsafe : {};
 
     const state = {
       role: "student",
+      activePanel: "student",
+      allowedPanels: [],
       lectureId: null,
       geoWatchId: null,
       lastGeo: null,
     };
 
+    const ROLE_LABELS = {
+      student: "Студент",
+      speaker: "Спикер",
+      admin: "Мастер-админ",
+      rating: "Команда рейтинга",
+    };
+
+    const AVAILABLE_PANELS = ["student", "speaker", "admin"];
+
+    const DEFAULT_PANELS_BY_ROLE = {
+      student: ["student"],
+      speaker: ["student", "speaker"],
+      admin: ["student", "speaker", "admin"],
+      rating: ["student"],
+    };
+
     const $ = (id) => document.getElementById(id);
 
     function setStatus(main, secondary) {
-      if (main) $("statusMain").textContent = main;
-      if (secondary) $("statusSecondary").textContent = secondary;
+      const mainEl = $("statusMain");
+      const secondaryEl = $("statusSecondary");
+      if (main && mainEl) {
+        mainEl.textContent = main;
+      }
+      if (secondary && secondaryEl) {
+        secondaryEl.textContent = secondary;
+      }
     }
+
+    function parseQuery(search) {
+      const query = {};
+      if (!search) return query;
+      const raw = search.charAt(0) === "?" ? search.slice(1) : search;
+      if (!raw) return query;
+      raw.split("&").forEach((part) => {
+        if (!part) return;
+        const [key, ...rest] = part.split("=");
+        const value = rest.length ? rest.join("=") : "";
+        try {
+          query[decodeURIComponent(key)] = decodeURIComponent(value);
+        } catch (e) {
+          query[key] = value;
+        }
+      });
+      return query;
+    }
+
+    function normalizeRole(value) {
+      const role = (value || "").toString().toLowerCase();
+      if (role === "student" || role === "speaker" || role === "admin" || role === "rating") {
+        return role;
+      }
+      return "student";
+    }
+
+    function initRoleAccess() {
+      const query = parseQuery(window.location.search);
+      const requestedRole = normalizeRole(query.role);
+      state.role = requestedRole;
+
+      const panelsParam = (query.panels || "").split(",").map((item) => item.trim()).filter(Boolean);
+
+      const allowedFromQuery = [];
+      panelsParam.forEach((panel) => {
+        const normalized = normalizeRole(panel);
+        if (
+          AVAILABLE_PANELS.indexOf(normalized) !== -1 &&
+          allowedFromQuery.indexOf(normalized) === -1
+        ) {
+          allowedFromQuery.push(normalized);
+        }
+      });
+
+      const fallbackPanels = DEFAULT_PANELS_BY_ROLE[state.role] || DEFAULT_PANELS_BY_ROLE.student;
+      const preferredPanels = allowedFromQuery.length ? allowedFromQuery : fallbackPanels.slice();
+      state.allowedPanels = preferredPanels.filter(
+        (panel) => AVAILABLE_PANELS.indexOf(panel) !== -1
+      );
+
+      if (!state.allowedPanels.length) {
+        state.allowedPanels = DEFAULT_PANELS_BY_ROLE.student.slice();
+      }
+
+      if (state.allowedPanels.indexOf(state.role) !== -1) {
+        state.activePanel = state.role;
+      } else if (state.allowedPanels.length > 0) {
+        state.activePanel = state.allowedPanels[0];
+      } else {
+        state.activePanel = "student";
+        if (state.allowedPanels.indexOf("student") === -1) {
+          state.allowedPanels.push("student");
+        }
+      }
+    }
+
+    initRoleAccess();
 
     // ------------------------------
     //  ОТОБРАЖЕНИЕ ИНФЫ TELEGRAM
@@ -384,37 +485,74 @@
     (function initTelegramUser() {
       if (!tg) return;
 
-      const user = tg.initDataUnsafe?.user;
+      const user = tgInitData.user || null;
       if (user) {
-        $("tgName").textContent =
-          (user.first_name || "") + " " + (user.last_name || "");
-        $("tgUid").textContent = "ID: " + user.id;
+        const first = user.first_name || "";
+        const last = user.last_name || "";
+        const nameEl = $("tgName");
+        const uidEl = $("tgUid");
+        if (nameEl) {
+          nameEl.textContent = `${first} ${last}`.trim() || "Пользователь Telegram";
+        }
+        if (uidEl) {
+          uidEl.textContent = "ID: " + user.id;
+        }
       }
 
-      // Светлая/тёмная тема
-      const isDark = tg.colorScheme === "dark";
-      if (!isDark) {
-        // чуть осветлим фон, если Телега светлая
+      if (tg && tg.colorScheme && tg.colorScheme !== "dark") {
         document.body.classList.remove("bg-slate-950");
         document.body.classList.add("bg-slate-100");
       }
     })();
 
-    // ------------------------------
-    //  ПЕРЕКЛЮЧЕНИЕ РОЛЕЙ
-    // ------------------------------
+    function applyLectureFromStartParam() {
+      if (!tg) return;
+      const startParam = tgInitData.start_param || "";
+      if (startParam) {
+        state.lectureId = startParam;
+        const lectureInfo = $("studentLectureInfo");
+        if (lectureInfo) {
+          lectureInfo.textContent =
+            "Текущая лекция: " + startParam + " (ID передан при запуске мини-аппы).";
+        }
+      }
+    }
+
     function updateRoleUI() {
-      document
-        .querySelectorAll("[data-role-panel]")
-        .forEach((panel) => (panel.classList.add("hidden")));
+      document.querySelectorAll("[data-role-panel]").forEach((panel) => {
+        const panelRole = panel.getAttribute("data-role-panel");
+        if (state.allowedPanels.indexOf(panelRole) === -1 || panelRole !== state.activePanel) {
+          panel.classList.add("hidden");
+          panel.setAttribute("aria-hidden", "true");
+        } else {
+          panel.classList.remove("hidden");
+          panel.removeAttribute("aria-hidden");
+        }
+      });
 
-      const activePanel = document.querySelector(
-        `[data-role-panel="${state.role}"]`
-      );
-      if (activePanel) activePanel.classList.remove("hidden");
+      const switcher = $("roleSwitcher");
+      if (switcher) {
+        if (state.allowedPanels.length <= 1) {
+          switcher.classList.add("hidden");
+        } else {
+          switcher.classList.remove("hidden");
+        }
+      }
 
-      document.querySelectorAll(".role-btn").forEach((btn) => {
-        if (btn.dataset.roleBtn === state.role) {
+      document.querySelectorAll("[data-role-btn]").forEach((btn) => {
+        const btnRole = btn.getAttribute("data-role-btn");
+        if (state.allowedPanels.indexOf(btnRole) === -1) {
+          btn.classList.add("hidden");
+          btn.disabled = true;
+          btn.setAttribute("aria-hidden", "true");
+          return;
+        }
+
+        btn.classList.remove("hidden");
+        btn.disabled = false;
+        btn.removeAttribute("aria-hidden");
+
+        if (btnRole === state.activePanel) {
           btn.classList.add("bg-sky-500", "text-white", "shadow-sm");
           btn.classList.remove("hover:bg-slate-800/80", "text-slate-200");
         } else {
@@ -423,42 +561,56 @@
         }
       });
 
-      $("tgRoleLabel").textContent =
-        "Роль: " +
-        (state.role === "student"
-          ? "Студент"
-          : state.role === "speaker"
-          ? "Спикер"
-          : "Мастер-админ");
+      const label = ROLE_LABELS[state.role] || state.role;
+      const labelEl = $("tgRoleLabel");
+      if (labelEl) {
+        labelEl.textContent = "Роль: " + label;
+      }
     }
 
     document.querySelectorAll("[data-role-btn]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        state.role = btn.dataset.roleBtn;
+        const targetRole = btn.getAttribute("data-role-btn");
+        if (state.allowedPanels.indexOf(targetRole) === -1 || state.activePanel === targetRole) {
+          return;
+        }
+        state.activePanel = targetRole;
         updateRoleUI();
+        const label = ROLE_LABELS[targetRole] || targetRole;
         setStatus(
-          "Роль переключена на: " + state.role,
-          "Все действия теперь будут помечены этой ролью на стороне бота."
+          "Активирован раздел: " + label,
+          "Действия из этого раздела будут отправляться боту."
         );
       });
     });
 
     updateRoleUI();
+    applyLectureFromStartParam();
+
+    if (!tg) {
+      setStatus(
+        "Telegram WebApp API недоступен.",
+        "Откройте мини-аппу внутри Telegram, чтобы сканирование QR и отправка данных работали."
+      );
+    }
 
     // ------------------------------
     //  УТИЛИТА ОТПРАВКИ ДАННЫХ БОТУ
     // ------------------------------
     function sendPayload(payload) {
-      const full = {
-        role: state.role,
-        lectureId: state.lectureId,
-        ...payload,
-      };
+      const full = Object.assign(
+        {
+          role: state.role,
+          activePanel: state.activePanel,
+          lectureId: state.lectureId,
+        },
+        payload
+      );
 
       if (!tg) {
         console.log("Payload (без Telegram):", full);
         alert(
-          "WebApp открыт вне Telegram. В бою sendData уйдёт боту.\n\n" +
+          "WebApp открыт вне Telegram. В продакшене данные были бы отправлены боту.\n\n" +
             JSON.stringify(full, null, 2)
         );
         return;
