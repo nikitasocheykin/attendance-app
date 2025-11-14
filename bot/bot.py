@@ -337,14 +337,17 @@ async def webapp_data_handler(message: Message):
         await message.answer("⚠ Не удалось разобрать данные из мини-аппы.")
         return
 
-    logger.info("WebApp payload from %s: %s", message.from_user.id, payload)
+    actual_role = await get_user_role(message.from_user.id)
+    declared_role = (payload.get("role") or "").lower() or None
+    logger.info(
+        "WebApp payload from %s (role=%s, declared=%s): %s",
+        message.from_user.id,
+        actual_role,
+        declared_role,
+        payload,
+    )
 
     p_type = payload.get("type")
-    role = (payload.get("role") or "student").lower()
-    lecture_id = payload.get("lectureId")
-
-    # Обновим роль в БД (роль всё равно проверяем на сервере, а не доверяем фронту)
-    await set_user_role(message.from_user.id, role)
 
     # Дальше диспатчим по типу события
     if p_type == "register":
@@ -574,6 +577,20 @@ async def handle_checkin(message: Message, payload: dict):
 
 async def handle_speaker_open_lecture(message: Message, payload: dict):
     user_id = message.from_user.id
+    role = await get_user_role(user_id)
+    if role != "speaker" and user_id not in MASTER_ADMIN_IDS:
+        logger.warning(
+            "Access denied for speaker_open_lecture: user=%s role=%s payload=%s",
+            user_id,
+            role,
+            payload,
+        )
+        await message.answer(
+            "🚫 У вас нет прав для открытия лекции."
+            " Доступ разрешён только спикерам или мастер-админам."
+        )
+        return
+
     lecture_id = payload.get("lectureId") or payload.get("lecture_id")
     if not lecture_id:
         await message.answer("⚠ Не указан ID лекции.")
@@ -602,6 +619,21 @@ async def handle_speaker_open_lecture(message: Message, payload: dict):
 
 
 async def handle_speaker_close_lecture(message: Message, payload: dict):
+    user_id = message.from_user.id
+    role = await get_user_role(user_id)
+    if role != "speaker" and user_id not in MASTER_ADMIN_IDS:
+        logger.warning(
+            "Access denied for speaker_close_lecture: user=%s role=%s payload=%s",
+            user_id,
+            role,
+            payload,
+        )
+        await message.answer(
+            "🚫 У вас нет прав для закрытия лекции."
+            " Доступ разрешён только спикерам или мастер-админам."
+        )
+        return
+
     lecture_id = payload.get("lectureId") or payload.get("lecture_id")
     if not lecture_id:
         await message.answer("⚠ Не указан ID лекции.")
@@ -628,6 +660,21 @@ async def handle_speaker_close_lecture(message: Message, payload: dict):
 
 
 async def handle_speaker_set_geo(message: Message, payload: dict):
+    user_id = message.from_user.id
+    role = await get_user_role(user_id)
+    if role != "speaker" and user_id not in MASTER_ADMIN_IDS:
+        logger.warning(
+            "Access denied for speaker_set_geo: user=%s role=%s payload=%s",
+            user_id,
+            role,
+            payload,
+        )
+        await message.answer(
+            "🚫 У вас нет прав для изменения геозоны лекции."
+            " Доступ разрешён только спикерам или мастер-админам."
+        )
+        return
+
     lecture_id = payload.get("lectureId") or payload.get("lecture_id")
     lat = payload.get("lat")
     lon = payload.get("lon")
@@ -674,6 +721,13 @@ async def handle_speaker_set_geo(message: Message, payload: dict):
 
 async def handle_admin_set_role(message: Message, payload: dict):
     if message.from_user.id not in MASTER_ADMIN_IDS:
+        role = await get_user_role(message.from_user.id)
+        logger.warning(
+            "Access denied for admin_set_role: user=%s role=%s payload=%s",
+            message.from_user.id,
+            role,
+            payload,
+        )
         await message.answer("🚫 Только мастер-админ может менять роли.")
         return
 
@@ -697,6 +751,13 @@ async def handle_admin_set_role(message: Message, payload: dict):
 
 async def handle_admin_request_stats(message: Message, payload: dict):
     if message.from_user.id not in MASTER_ADMIN_IDS:
+        role = await get_user_role(message.from_user.id)
+        logger.warning(
+            "Access denied for admin_request_stats: user=%s role=%s payload=%s",
+            message.from_user.id,
+            role,
+            payload,
+        )
         await message.answer("🚫 Только мастер-админ может запрашивать статистику.")
         return
 
