@@ -1,342 +1,177 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <title>Attendance WebApp</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Telegram WebApp JS -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    :root {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--tg-theme-bg-color, #0f1419);
-      color: var(--tg-theme-text-color, #fff);
-    }
-    body {
-      margin: 0;
-      padding: 12px;
-      background: var(--tg-theme-bg-color, #0f1419);
-    }
-    h1 {
-      font-size: 20px;
-      margin-bottom: 8px;
-    }
-    h2 {
-      font-size: 16px;
-      margin: 16px 0 8px;
-    }
-    .card {
-      border-radius: 16px;
-      padding: 12px;
-      margin-bottom: 12px;
-      background: var(--tg-theme-secondary-bg-color, #161b22);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    }
-    label {
-      display: block;
-      font-size: 13px;
-      margin: 6px 0 2px;
-    }
-    input {
-      width: 100%;
-      padding: 6px 8px;
-      border-radius: 10px;
-      border: 1px solid var(--tg-theme-hint-color, #444);
-      font-size: 14px;
-      background: transparent;
-      color: inherit;
-      box-sizing: border-box;
-    }
-    .row {
-      display: flex;
-      gap: 8px;
-    }
-    .row > div {
-      flex: 1;
-    }
-    button {
-      width: 100%;
-      margin-top: 8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      border: none;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--tg-theme-button-color, #2ea043);
-      color: var(--tg-theme-button-text-color, #fff);
-    }
-    button.secondary {
-      background: transparent;
-      border: 1px solid var(--tg-theme-hint-color, #444);
-      color: var(--tg-theme-text-color, #fff);
-    }
-    .small {
-      font-size: 12px;
-      opacity: 0.8;
-      margin-top: 4px;
-    }
-    .tabs {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .tab-btn {
-      flex: 1;
-      padding: 6px;
-      border-radius: 999px;
-      border: 1px solid var(--tg-theme-hint-color, #444);
-      background: transparent;
-      color: inherit;
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .tab-btn.active {
-      background: var(--tg-theme-button-color, #2ea043);
-      color: var(--tg-theme-button-text-color, #fff);
-      border-color: transparent;
-    }
-    .hidden { display: none; }
-    .status {
-      font-size: 12px;
-      margin-top: 6px;
-      white-space: pre-line;
-    }
-  </style>
-</head>
-<body>
-  <h1>Отметка на лекции</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Attendance WebApp</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  </head>
+  <body class="bg-slate-900 text-slate-100">
+    <div class="max-w-xl mx-auto px-4 py-6">
+      <h1 class="text-2xl font-bold mb-4">Учёт посещаемости</h1>
+      <p id="user-info" class="mb-4 text-sm text-slate-300"></p>
 
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="student">Студент</button>
-    <button class="tab-btn" data-tab="speaker">Спикер / Админ</button>
-    <button class="tab-btn" data-tab="service">Сервис</button>
-  </div>
-
-  <!-- Студент -->
-  <div id="tab-student" class="card">
-    <h2>Студент</h2>
-    <label>ID лекции</label>
-    <input id="st-lecture-id" type="number" placeholder="Например, 1" />
-
-    <label>QR payload</label>
-    <input id="st-qr" type="text" placeholder="ATTEND:1:secret" />
-
-    <div class="row">
-      <div>
-        <label>Широта (lat)</label>
-        <input id="st-lat" type="text" placeholder="Авто" />
+      <div class="mb-4">
+        <span class="text-xs uppercase text-slate-400">Роль:</span>
+        <span id="role-label" class="ml-2 font-semibold"></span>
       </div>
-      <div>
-        <label>Долгота (lon)</label>
-        <input id="st-lon" type="text" placeholder="Авто" />
-      </div>
+
+      <section id="student-panel" class="hidden space-y-4">
+        <h2 class="text-xl font-semibold mb-2">Панель студента</h2>
+        <div class="bg-slate-800 rounded-xl p-4 space-y-3">
+          <p class="text-sm text-slate-300">
+            1. В чате с ботом отправь <b>live-геопозицию</b>.<br />
+            2. На этой странице отсканируй <b>QR-код лекции</b> и укажи ID лекции.
+          </p>
+
+          <label class="block text-sm">
+            ID лекции
+            <input
+              id="student-lecture-id"
+              type="number"
+              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
+              placeholder="Например, 1"
+            />
+          </label>
+
+          <div class="space-y-2">
+            <button
+              id="btn-start-qr"
+              class="w-full rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
+            >
+              Запустить сканер QR
+            </button>
+            <video
+              id="qr-video"
+              class="w-full rounded-lg hidden"
+              autoplay
+              playsinline
+            ></video>
+            <canvas id="qr-canvas" class="hidden"></canvas>
+            <p id="qr-status" class="text-xs text-slate-400"></p>
+          </div>
+
+          <button
+            id="btn-send-checkin"
+            class="w-full rounded-lg bg-blue-500 hover:bg-blue-600 px-4 py-2 text-sm font-semibold"
+          >
+            Отправить отметку
+          </button>
+        </div>
+      </section>
+
+      <section id="speaker-panel" class="hidden space-y-4">
+        <h2 class="text-xl font-semibold mb-2">Панель спикера</h2>
+        <div class="bg-slate-800 rounded-xl p-4 space-y-3">
+          <p class="text-sm text-slate-300">
+            Управление окном отметки и координатами лекции по её ID.
+          </p>
+
+          <label class="block text-sm">
+            ID лекции
+            <input
+              id="speaker-lecture-id"
+              type="number"
+              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
+            />
+          </label>
+
+          <div class="flex gap-2">
+            <button
+              id="btn-open-checkin"
+              class="flex-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
+            >
+              Открыть окно отметки
+            </button>
+            <button
+              id="btn-close-checkin"
+              class="flex-1 rounded-lg bg-red-500 hover:bg-red-600 px-4 py-2 text-sm font-semibold"
+            >
+              Закрыть окно отметки
+            </button>
+          </div>
+
+          <div class="space-y-2">
+            <p class="text-xs text-slate-400">
+              Координаты можно задать вручную (lat/lon).
+            </p>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-sm">
+                Lat
+                <input
+                  id="speaker-lat"
+                  type="number"
+                  step="0.000001"
+                  class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
+                />
+              </label>
+              <label class="text-sm">
+                Lon
+                <input
+                  id="speaker-lon"
+                  type="number"
+                  step="0.000001"
+                  class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <button
+              id="btn-set-location"
+              class="w-full rounded-lg bg-blue-500 hover:bg-blue-600 px-4 py-2 text-sm font-semibold"
+            >
+              Установить координаты лекции
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin-panel" class="hidden space-y-4">
+        <h2 class="text-xl font-semibold mb-2">Панель мастер-админа</h2>
+        <div class="bg-slate-800 rounded-xl p-4 space-y-3">
+          <h3 class="font-semibold text-sm">Настройки системы</h3>
+          <label class="block text-sm">
+            ID чата рейтинговой комиссии
+            <input
+              id="admin-rating-chat-id"
+              type="number"
+              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            id="btn-admin-set-rating-chat"
+            class="w-full rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
+          >
+            Сохранить ID чата комиссии
+          </button>
+
+          <label class="block text-sm">
+            ID Google Sheets (spreadsheet)
+            <input
+              id="admin-sheet-id"
+              type="text"
+              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            id="btn-admin-set-sheet-id"
+            class="w-full rounded-lg bg-blue-500 hover:bg-blue-600 px-4 py-2 text-sm font-semibold"
+          >
+            Сохранить ID Google Sheets
+          </button>
+
+          <p class="text-xs text-slate-400">
+            CRUD по лекциям и ролям можно расширить отдельно, всё также через sendData.
+          </p>
+        </div>
+      </section>
+
+      <p class="mt-6 text-xs text-slate-500">
+        Все действия отправляются в бота через Telegram.WebApp.sendData.
+      </p>
     </div>
 
-    <button id="st-get-location" type="button">Получить геолокацию</button>
-    <button id="st-check-in" type="button">Отметиться</button>
-
-    <div class="small">
-      При сильном расхождении координат бот попросит отправить видео-кружок
-      в чат, где вас видит команда рейтинга.
-    </div>
-
-    <div id="st-status" class="status"></div>
-  </div>
-
-  <!-- Спикер / админ -->
-  <div id="tab-speaker" class="card hidden">
-    <h2>Спикер / Мастер-админ</h2>
-    <label>ID лекции</label>
-    <input id="sp-lecture-id" type="number" placeholder="Например, 1" />
-
-    <div class="row">
-      <div>
-        <label>Радиус, м</label>
-        <input id="sp-radius" type="number" value="100" />
-      </div>
-    </div>
-
-    <button id="sp-set-location" type="button">Обновить точку лекции по текущей геолокации</button>
-    <button id="sp-toggle-open" type="button">Открыть/закрыть отметку</button>
-    <button id="sp-list-lectures" class="secondary" type="button">
-      Мои лекции (список придёт в чат)
-    </button>
-
-    <div class="small">
-      При обновлении точки радиус задаёт допустимое расстояние для отметки.
-    </div>
-
-    <div id="sp-status" class="status"></div>
-  </div>
-
-  <!-- Сервис -->
-  <div id="tab-service" class="card hidden">
-    <h2>Сервис / Отладка</h2>
-    <button id="sv-ping" type="button">Отправить ping боту</button>
-    <div class="small">
-      Если WebApp работает, в чате придёт сообщение «Ping от WebApp получен».
-    </div>
-    <div class="small">
-      Список лекций для мастер-админа доступен через вкладку «Спикер / Админ».
-    </div>
-    <div id="sv-status" class="status"></div>
-  </div>
-
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand(); // раскрыть на весь экран
-
-    const studentTabBtn = document.querySelector('[data-tab="student"]');
-    const speakerTabBtn = document.querySelector('[data-tab="speaker"]');
-    const serviceTabBtn = document.querySelector('[data-tab="service"]');
-    const tabBtns = [studentTabBtn, speakerTabBtn, serviceTabBtn];
-
-    const tabStudent = document.getElementById("tab-student");
-    const tabSpeaker = document.getElementById("tab-speaker");
-    const tabService = document.getElementById("tab-service");
-
-    function switchTab(name) {
-      tabStudent.classList.toggle("hidden", name !== "student");
-      tabSpeaker.classList.toggle("hidden", name !== "speaker");
-      tabService.classList.toggle("hidden", name !== "service");
-      tabBtns.forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.tab === name);
-      });
-    }
-
-    tabBtns.forEach((btn) => {
-      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-    });
-
-    // --- Студент ---
-    const stLectureId = document.getElementById("st-lecture-id");
-    const stQr = document.getElementById("st-qr");
-    const stLat = document.getElementById("st-lat");
-    const stLon = document.getElementById("st-lon");
-    const stStatus = document.getElementById("st-status");
-
-    document.getElementById("st-get-location").addEventListener("click", () => {
-      stStatus.textContent = "Запрашиваем геолокацию...";
-      if (!navigator.geolocation) {
-        stStatus.textContent = "Геолокация браузером не поддерживается.";
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          stLat.value = latitude.toFixed(6);
-          stLon.value = longitude.toFixed(6);
-          stStatus.textContent = "Координаты обновлены.";
-        },
-        (err) => {
-          stStatus.textContent = "Ошибка получения геолокации: " + err.message;
-        }
-      );
-    });
-
-    document.getElementById("st-check-in").addEventListener("click", () => {
-      const lectureId = Number(stLectureId.value);
-      const qrPayload = stQr.value.trim();
-      const lat = Number(stLat.value || NaN);
-      const lon = Number(stLon.value || NaN);
-
-      if (!lectureId || !qrPayload || isNaN(lat) || isNaN(lon)) {
-        stStatus.textContent = "Заполните ID лекции, QR и координаты.";
-        return;
-      }
-
-      const data = {
-        action: "check_in",
-        lecture_id: lectureId,
-        qr_payload: qrPayload,
-        lat,
-        lon,
-      };
-      tg.sendData(JSON.stringify(data));
-      stStatus.textContent = "Отправлено в бота. Результат придёт в чат.";
-    });
-
-    // --- Спикер / админ ---
-    const spLectureId = document.getElementById("sp-lecture-id");
-    const spRadius = document.getElementById("sp-radius");
-    const spStatus = document.getElementById("sp-status");
-
-    function getCurrentLocation(cb) {
-      if (!navigator.geolocation) {
-        cb(null, "Геолокация браузером не поддерживается.");
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => cb(pos.coords, null),
-        (err) => cb(null, err.message)
-      );
-    }
-
-    document.getElementById("sp-set-location").addEventListener("click", () => {
-      const lectureId = Number(spLectureId.value);
-      const radius = Number(spRadius.value || 100);
-      if (!lectureId) {
-        spStatus.textContent = "Укажите ID лекции.";
-        return;
-      }
-      spStatus.textContent = "Получаем геолокацию...";
-      getCurrentLocation((coords, err) => {
-        if (err) {
-          spStatus.textContent = "Ошибка геолокации: " + err;
-          return;
-        }
-        const lat = Number(coords.latitude.toFixed(6));
-        const lon = Number(coords.longitude.toFixed(6));
-        const payload = {
-          action: "update_location",
-          lecture_id: lectureId,
-          lat,
-          lon,
-          radius_m: radius || 100,
-        };
-        tg.sendData(JSON.stringify(payload));
-        spStatus.textContent = "Данные отправлены. Ответ придёт в чат.";
-      });
-    });
-
-    document.getElementById("sp-toggle-open").addEventListener("click", () => {
-      const lectureId = Number(spLectureId.value);
-      if (!lectureId) {
-        spStatus.textContent = "Укажите ID лекции.";
-        return;
-      }
-      const payload = {
-        action: "toggle_open",
-        lecture_id: lectureId,
-      };
-      tg.sendData(JSON.stringify(payload));
-      spStatus.textContent = "Запрос на открытие/закрытие отправлен.";
-    });
-
-    document.getElementById("sp-list-lectures").addEventListener("click", () => {
-      const payload = {
-        action: "list_lectures",
-      };
-      tg.sendData(JSON.stringify(payload));
-      spStatus.textContent = "Запрос списка лекций отправлен. Ответ придёт в чат.";
-    });
-
-    // --- Сервис / ping ---
-    const svStatus = document.getElementById("sv-status");
-    document.getElementById("sv-ping").addEventListener("click", () => {
-      const payload = { action: "debug_ping" };
-      tg.sendData(JSON.stringify(payload));
-      svStatus.textContent = "Ping отправлен, сообщение от бота придёт в чат.";
-    });
-
-    // TODO: интеграция QRScanner из Telegram Mini Apps SDK:
-    // можно подключить @telegram-apps/sdk через bundler и сделать кнопку:
-    // const qrScanner = initQRScanner();
-    // qrScanner.open('Сканируйте QR').then((content) => {
-    //   stQr.value = content || '';
-    // });
-    // Документация: https://docs.telegram-mini-apps.com/packages/telegram-apps-sdk/1-x/components/qr-scanner
-  </script>
-</body>
+    <script src="./main.js"></script>
+  </body>
 </html>
