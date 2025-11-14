@@ -10,8 +10,36 @@
 
   <!-- Telegram WebApp JS -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    .tg-warning-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.96);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #e5e7eb;
+      padding: 1.5rem;
+      z-index: 9999;
+      text-align: center;
+    }
+  </style>
 </head>
 <body class="bg-slate-950 min-h-screen flex justify-center">
+  <!-- Оверлей, если НЕ Telegram -->
+  <div id="notTelegramOverlay" class="tg-warning-overlay hidden">
+    <h2 class="text-xl font-bold mb-2">Открой через Telegram</h2>
+    <p class="text-sm text-slate-300 mb-4 max-w-md">
+      Это мини-приложение работает только внутри Telegram WebApp.<br/>
+      Открой бота и нажми кнопку <b>«Открыть мини-аппу»</b> или кнопку в командах.
+    </p>
+    <p class="text-xs text-slate-500">
+      В обычном браузере не работают Telegram API (сканер QR, данные пользователя, secure initData).
+    </p>
+  </div>
+
   <div
     id="app"
     class="w-full max-w-lg px-4 py-6 sm:px-6 sm:py-8 text-slate-50 font-sans"
@@ -22,7 +50,7 @@
         MIREA Attendance
       </h1>
       <p class="text-sm text-slate-300">
-        Мини-приложение для отметок посещаемости: студент · спикер · мастер-админ.
+        Мини-приложение для отметок посещаемости.
       </p>
 
       <div
@@ -37,35 +65,10 @@
           id="tgRoleLabel"
           class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/40"
         >
-          Роль: Студент
+          Режим: студент
         </span>
       </div>
     </header>
-
-    <!-- ROLE SWITCHER -->
-    <nav
-      id="roleSwitcher"
-      class="grid grid-cols-3 gap-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-1 mb-4 text-xs font-semibold"
-    >
-      <button
-        data-role-btn="student"
-        class="role-btn rounded-xl px-3 py-2 bg-sky-500 text-white shadow-sm"
-      >
-        Студент
-      </button>
-      <button
-        data-role-btn="speaker"
-        class="role-btn rounded-xl px-3 py-2 text-slate-200 hover:bg-slate-800/80"
-      >
-        Спикер
-      </button>
-      <button
-        data-role-btn="admin"
-        class="role-btn rounded-xl px-3 py-2 text-slate-200 hover:bg-slate-800/80"
-      >
-        Мастер-админ
-      </button>
-    </nav>
 
     <!-- STATUS BAR -->
     <section
@@ -76,25 +79,24 @@
         Готово к работе.
       </div>
       <div id="statusSecondary" class="text-[11px] text-slate-400 mt-1">
-        Сообщения и события будут отправляться через Telegram.WebApp.sendData().
+        Весь доступ реально проверяется на стороне бота. Интерфейс — только UI.
       </div>
     </section>
 
-    <!-- PANELS WRAPPER -->
+    <!-- MAIN CONTENT -->
     <main class="space-y-4 mb-8">
 
       <!-- STUDENT PANEL -->
       <section
         id="panel-student"
-        data-role-panel="student"
         class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-4"
       >
         <h2 class="text-sm font-semibold text-slate-100 mb-1">
           Панель студента
         </h2>
         <p class="text-xs text-slate-400 mb-2">
-          Заполните профиль, отсканируйте QR лекции, включите трансляцию
-          геопозиции и отметьтесь.
+          Заполните профиль, привяжитесь к лекции, включите трансляцию
+          геопозиции и отправьте отметку.
         </p>
 
         <!-- Профиль -->
@@ -127,7 +129,7 @@
         <!-- QR и лекция -->
         <div class="space-y-2">
           <h3 class="text-xs font-semibold text-slate-300">
-            QR-код и лекция
+            QR-код лекции
           </h3>
           <button
             id="btnStudentScanQR"
@@ -139,8 +141,7 @@
             id="studentLectureInfo"
             class="text-[11px] text-slate-400 mt-1 break-words"
           >
-            Лекция ещё не выбрана. Отсканируйте QR-код, чтобы привязаться к
-            конкретной паре.
+            Лекция ещё не выбрана. Отсканируйте QR-код лекции внутри Telegram.
           </p>
         </div>
 
@@ -152,9 +153,9 @@
             Трансляция геопозиции (live)
           </h3>
           <p class="text-[11px] text-slate-400">
-            При включении мы используем <b>watchPosition()</b> и периодически
-            отправляем координаты боту. Это максимально приближено к
-            трансляции геопозиции в Telegram.
+            При включении используется <b>watchPosition()</b> и координаты
+            периодически отправляются боту. Это максимально приближено
+            к трансляции геолокации.
           </p>
 
           <div class="flex gap-2">
@@ -196,8 +197,8 @@
             ✅ Отправить отметку
           </button>
           <p class="text-[11px] text-slate-400">
-            Отметка уйдёт боту вместе с текущей ролью, профильной информацией,
-            ID лекции и последней геопозицией (если трансляция включена).
+            Отметка уйдёт боту вместе с ФИО, почтой, ID лекции и последней
+            геопозицией (если трансляция включена).
           </p>
         </div>
       </section>
@@ -205,15 +206,13 @@
       <!-- SPEAKER PANEL -->
       <section
         id="panel-speaker"
-        data-role-panel="speaker"
         class="hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-4"
       >
         <h2 class="text-sm font-semibold text-slate-100 mb-1">
           Панель спикера
         </h2>
         <p class="text-xs text-slate-400 mb-2">
-          Открывайте/закрывайте лекции, задавайте геозону аудитории, управляйте
-          отметками.
+          Открывайте/закрывайте лекции, задавайте геозону аудитории.
         </p>
 
         <!-- Управление лекцией -->
@@ -239,9 +238,6 @@
               🔒 Закрыть
             </button>
           </div>
-          <p class="text-[11px] text-slate-400">
-            Бот будет решать, какой QR действителен и какие отметки принимать.
-          </p>
         </div>
 
         <hr class="border-slate-800 my-2" />
@@ -262,36 +258,18 @@
             радиуса.
           </p>
         </div>
-
-        <hr class="border-slate-800 my-2" />
-
-        <!-- QR-подсказка -->
-        <div class="space-y-1">
-          <h3 class="text-xs font-semibold text-slate-300">
-            QR-код лекции
-          </h3>
-          <p class="text-[11px] text-slate-400">
-            QR-код должен вести на ссылку вида:
-            <span class="text-slate-200">
-              <code>https://t.me/&lt;бот&gt;/app?startapp=&lt;ID_лекции&gt;</code>
-            </span>.
-            Студенты сканируют его встроенным сканером в этом WebApp.
-          </p>
-        </div>
       </section>
 
       <!-- ADMIN PANEL -->
       <section
         id="panel-admin"
-        data-role-panel="admin"
         class="hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-4"
       >
         <h2 class="text-sm font-semibold text-slate-100 mb-1">
           Панель мастер-админа
         </h2>
         <p class="text-xs text-slate-400 mb-2">
-          Установка чатов, запрос статистики посещаемости, ручное управление
-          ролями (всё на стороне бота, мы только отправляем события).
+          Управление ролями и запрос статистики посещаемости.
         </p>
 
         <div class="space-y-2">
@@ -339,278 +317,107 @@
           >
             📊 Запросить статистику посещаемости
           </button>
-          <p class="text-[11px] text-slate-400">
-            Бот может прислать сводку, выгрузку в Google Sheets или PDF-отчёт в
-            отдельный чат.
-          </p>
         </div>
       </section>
     </main>
 
     <!-- FOOTER -->
     <footer class="text-[10px] text-slate-500 text-center">
-      Все критические проверки (геозона, роли, уникальность устройства, валидация
-      QR и т.п.) выполняются на стороне бота и сервера.
+      Все реальные проверки (роли, геозона, уникальность, QR) делает бот.
     </footer>
   </div>
 
   <script>
     // ------------------------------
-    //  БАЗОВАЯ ИНИЦИАЛИЗАЦИЯ
+    //  ПОДГОТОВКА
     // ------------------------------
-    let tg = null;
-    if (window.Telegram && window.Telegram.WebApp) {
-      tg = window.Telegram.WebApp;
-      try {
-        tg.ready();
-        tg.expand();
-      } catch (err) {
-        console.warn("Telegram WebApp init error", err);
-      }
-    } else {
-      console.warn("Telegram WebApp API is not available");
-    }
-
-    const tgInitData = tg && typeof tg.initDataUnsafe === "object" ? tg.initDataUnsafe : {};
-
-    const state = {
-      role: "student",
-      activePanel: "student",
-      allowedPanels: [],
-      lectureId: null,
-      geoWatchId: null,
-      lastGeo: null,
-    };
-
-    const ROLE_LABELS = {
-      student: "Студент",
-      speaker: "Спикер",
-      admin: "Мастер-админ",
-      rating: "Команда рейтинга",
-    };
-
-    const AVAILABLE_PANELS = ["student", "speaker", "admin"];
-
-    const DEFAULT_PANELS_BY_ROLE = {
-      student: ["student"],
-      speaker: ["student", "speaker"],
-      admin: ["student", "speaker", "admin"],
-      rating: ["student"],
-    };
+    const tg = window.Telegram?.WebApp || null;
 
     const $ = (id) => document.getElementById(id);
 
     function setStatus(main, secondary) {
-      const mainEl = $("statusMain");
-      const secondaryEl = $("statusSecondary");
-      if (main && mainEl) {
-        mainEl.textContent = main;
-      }
-      if (secondary && secondaryEl) {
-        secondaryEl.textContent = secondary;
-      }
+      if (main) $("statusMain").textContent = main;
+      if (secondary) $("statusSecondary").textContent = secondary;
     }
 
-    function parseQuery(search) {
-      const query = {};
-      if (!search) return query;
-      const raw = search.charAt(0) === "?" ? search.slice(1) : search;
-      if (!raw) return query;
-      raw.split("&").forEach((part) => {
-        if (!part) return;
-        const [key, ...rest] = part.split("=");
-        const value = rest.length ? rest.join("=") : "";
-        try {
-          query[decodeURIComponent(key)] = decodeURIComponent(value);
-        } catch (e) {
-          query[key] = value;
-        }
-      });
-      return query;
+    // Проверяем, что запущено в Telegram
+    function ensureTelegramEnv() {
+      if (!tg || !tg.initDataUnsafe || !tg.initData) {
+        document.getElementById("notTelegramOverlay").classList.remove("hidden");
+        // Блокируем основное приложение
+        document.getElementById("app").classList.add("opacity-20");
+        return false;
+      }
+      document.getElementById("notTelegramOverlay").classList.add("hidden");
+      document.getElementById("app").classList.remove("opacity-20");
+      return true;
     }
 
-    function normalizeRole(value) {
-      const role = (value || "").toString().toLowerCase();
-      if (role === "student" || role === "speaker" || role === "admin" || role === "rating") {
-        return role;
-      }
-      return "student";
-    }
+    const inTelegram = ensureTelegramEnv();
 
-    function initRoleAccess() {
-      const query = parseQuery(window.location.search);
-      const requestedRole = normalizeRole(query.role);
-      state.role = requestedRole;
-
-      const panelsParam = (query.panels || "").split(",").map((item) => item.trim()).filter(Boolean);
-
-      const allowedFromQuery = [];
-      panelsParam.forEach((panel) => {
-        const normalized = normalizeRole(panel);
-        if (
-          AVAILABLE_PANELS.indexOf(normalized) !== -1 &&
-          allowedFromQuery.indexOf(normalized) === -1
-        ) {
-          allowedFromQuery.push(normalized);
-        }
-      });
-
-      const fallbackPanels = DEFAULT_PANELS_BY_ROLE[state.role] || DEFAULT_PANELS_BY_ROLE.student;
-      const preferredPanels = allowedFromQuery.length ? allowedFromQuery : fallbackPanels.slice();
-      state.allowedPanels = preferredPanels.filter(
-        (panel) => AVAILABLE_PANELS.indexOf(panel) !== -1
-      );
-
-      if (!state.allowedPanels.length) {
-        state.allowedPanels = DEFAULT_PANELS_BY_ROLE.student.slice();
-      }
-
-      if (state.allowedPanels.indexOf(state.role) !== -1) {
-        state.activePanel = state.role;
-      } else if (state.allowedPanels.length > 0) {
-        state.activePanel = state.allowedPanels[0];
-      } else {
-        state.activePanel = "student";
-        if (state.allowedPanels.indexOf("student") === -1) {
-          state.allowedPanels.push("student");
-        }
-      }
-    }
-
-    initRoleAccess();
-
-    // ------------------------------
-    //  ОТОБРАЖЕНИЕ ИНФЫ TELEGRAM
-    // ------------------------------
-    (function initTelegramUser() {
-      if (!tg) return;
-
-      const user = tgInitData.user || null;
-      if (user) {
-        const first = user.first_name || "";
-        const last = user.last_name || "";
-        const nameEl = $("tgName");
-        const uidEl = $("tgUid");
-        if (nameEl) {
-          nameEl.textContent = `${first} ${last}`.trim() || "Пользователь Telegram";
-        }
-        if (uidEl) {
-          uidEl.textContent = "ID: " + user.id;
-        }
-      }
-
-      if (tg && tg.colorScheme && tg.colorScheme !== "dark") {
-        document.body.classList.remove("bg-slate-950");
-        document.body.classList.add("bg-slate-100");
-      }
-    })();
-
-    function applyLectureFromStartParam() {
-      if (!tg) return;
-      const startParam = tgInitData.start_param || "";
-      if (startParam) {
-        state.lectureId = startParam;
-        const lectureInfo = $("studentLectureInfo");
-        if (lectureInfo) {
-          lectureInfo.textContent =
-            "Текущая лекция: " + startParam + " (ID передан при запуске мини-аппы).";
-        }
-      }
-    }
-
-    function updateRoleUI() {
-      document.querySelectorAll("[data-role-panel]").forEach((panel) => {
-        const panelRole = panel.getAttribute("data-role-panel");
-        if (state.allowedPanels.indexOf(panelRole) === -1 || panelRole !== state.activePanel) {
-          panel.classList.add("hidden");
-          panel.setAttribute("aria-hidden", "true");
-        } else {
-          panel.classList.remove("hidden");
-          panel.removeAttribute("aria-hidden");
-        }
-      });
-
-      const switcher = $("roleSwitcher");
-      if (switcher) {
-        if (state.allowedPanels.length <= 1) {
-          switcher.classList.add("hidden");
-        } else {
-          switcher.classList.remove("hidden");
-        }
-      }
-
-      document.querySelectorAll("[data-role-btn]").forEach((btn) => {
-        const btnRole = btn.getAttribute("data-role-btn");
-        if (state.allowedPanels.indexOf(btnRole) === -1) {
-          btn.classList.add("hidden");
-          btn.disabled = true;
-          btn.setAttribute("aria-hidden", "true");
-          return;
-        }
-
-        btn.classList.remove("hidden");
-        btn.disabled = false;
-        btn.removeAttribute("aria-hidden");
-
-        if (btnRole === state.activePanel) {
-          btn.classList.add("bg-sky-500", "text-white", "shadow-sm");
-          btn.classList.remove("hover:bg-slate-800/80", "text-slate-200");
-        } else {
-          btn.classList.remove("bg-sky-500", "text-white", "shadow-sm");
-          btn.classList.add("hover:bg-slate-800/80", "text-slate-200");
-        }
-      });
-
-      const label = ROLE_LABELS[state.role] || state.role;
-      const labelEl = $("tgRoleLabel");
-      if (labelEl) {
-        labelEl.textContent = "Роль: " + label;
-      }
-    }
-
-    document.querySelectorAll("[data-role-btn]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const targetRole = btn.getAttribute("data-role-btn");
-        if (state.allowedPanels.indexOf(targetRole) === -1 || state.activePanel === targetRole) {
-          return;
-        }
-        state.activePanel = targetRole;
-        updateRoleUI();
-        const label = ROLE_LABELS[targetRole] || targetRole;
-        setStatus(
-          "Активирован раздел: " + label,
-          "Действия из этого раздела будут отправляться боту."
-        );
-      });
-    });
-
-    updateRoleUI();
-    applyLectureFromStartParam();
-
-    if (!tg) {
-      setStatus(
-        "Telegram WebApp API недоступен.",
-        "Откройте мини-аппу внутри Telegram, чтобы сканирование QR и отправка данных работали."
-      );
+    if (inTelegram) {
+      tg.ready();
+      tg.expand();
     }
 
     // ------------------------------
-    //  УТИЛИТА ОТПРАВКИ ДАННЫХ БОТУ
+    //  РЕЖИМ (student / speaker / admin)
+    // ------------------------------
+    const params = new URLSearchParams(window.location.search);
+    let uiMode = (params.get("mode") || "student").toLowerCase();
+    if (!["student", "speaker", "admin"].includes(uiMode)) {
+      uiMode = "student";
+    }
+
+    function updateModeUI() {
+      $("panel-student").classList.add("hidden");
+      $("panel-speaker").classList.add("hidden");
+      $("panel-admin").classList.add("hidden");
+
+      if (uiMode === "student") {
+        $("panel-student").classList.remove("hidden");
+      } else if (uiMode === "speaker") {
+        $("panel-speaker").classList.remove("hidden");
+      } else if (uiMode === "admin") {
+        $("panel-admin").classList.remove("hidden");
+      }
+
+      const label = uiMode === "student"
+        ? "Режим: студент"
+        : uiMode === "speaker"
+        ? "Режим: спикер (UI)"
+        : "Режим: мастер-админ (UI)";
+
+      $("tgRoleLabel").textContent = label;
+    }
+
+    updateModeUI();
+
+    // ------------------------------
+    //  ИНФА О ПОЛЬЗОВАТЕЛЕ
+    // ------------------------------
+    if (inTelegram) {
+      const u = tg.initDataUnsafe.user;
+      if (u) {
+        $("tgName").textContent = (u.first_name || "") + " " + (u.last_name || "");
+        $("tgUid").textContent = "ID: " + u.id;
+      }
+    }
+
+    // ------------------------------
+    //  ОТПРАВКА PAYLOAD БОТУ
     // ------------------------------
     function sendPayload(payload) {
-      const full = Object.assign(
-        {
-          role: state.role,
-          activePanel: state.activePanel,
-          lectureId: state.lectureId,
-        },
-        payload
-      );
+      const full = {
+        ...payload,
+        lectureId: state.lectureId,
+        mode: uiMode, // просто для логов на бэке
+      };
 
-      if (!tg) {
-        console.log("Payload (без Telegram):", full);
+      if (!inTelegram) {
+        console.log("Payload (no Telegram):", full);
         alert(
-          "WebApp открыт вне Telegram. В продакшене данные были бы отправлены боту.\n\n" +
+          "WebApp открыт вне Telegram. В бою sendData уйдёт боту.\n\n" +
             JSON.stringify(full, null, 2)
         );
         return;
@@ -618,11 +425,15 @@
       tg.sendData(JSON.stringify(full));
     }
 
-    // ------------------------------
-    //  ПАНЕЛЬ СТУДЕНТА
-    // ------------------------------
+    const state = {
+      lectureId: null,
+      geoWatchId: null,
+      lastGeo: null,
+    };
 
-    // Регистрация профиля
+    // ------------------------------
+    //  СТУДЕНТ: ПРОФИЛЬ
+    // ------------------------------
     $("btnStudentRegister").addEventListener("click", () => {
       const fio = $("studentFio").value.trim();
       const email = $("studentEmail").value.trim();
@@ -642,26 +453,29 @@
       });
 
       setStatus(
-        "Профиль отправлен на регистрацию.",
-        "Бот проверит почту, создаст/обновит запись и свяжет её с вашим Telegram ID."
+        "Профиль отправлен на обновление.",
+        "Бот свяжет его с вашим Telegram ID."
       );
     });
 
-    // Сканирование QR лекции
+    // ------------------------------
+    //  СТУДЕНТ: QR
+    // ------------------------------
     $("btnStudentScanQR").addEventListener("click", () => {
-      if (!tg || !tg.scanQrPopup) {
-        alert("QR-сканер Telegram недоступен в этом окружении.");
+      if (!inTelegram || !tg.scanQrPopup) {
+        setStatus(
+          "QR-сканер недоступен.",
+          "Открой мини-аппу внутри Telegram на мобильном устройстве."
+        );
         return;
       }
 
       tg.scanQrPopup(
-        {
-          text: "Отсканируйте QR-код лекции",
-        },
+        { text: "Отсканируйте QR-код лекции" },
         (result) => {
           state.lectureId = result;
           $("studentLectureInfo").textContent =
-            "Текущая лекция: " + result + " (значение передано боту).";
+            "Текущая лекция: " + result + " (ID передан боту).";
 
           sendPayload({
             type: "qr_scan",
@@ -670,13 +484,15 @@
 
           setStatus(
             "QR-код отсканирован.",
-            "ID лекции привязан к вашему сеансу в мини-аппе."
+            "Лекция привязана к вашему сеансу. Бот проверяет, что это валидный ID."
           );
         }
       );
     });
 
-    // LIVE GEO (watchPosition)
+    // ------------------------------
+    //  СТУДЕНТ: LIVE GEO
+    // ------------------------------
     function startGeoStream() {
       if (!navigator.geolocation) {
         setStatus(
@@ -699,7 +515,6 @@
           const ts = Date.now();
           state.lastGeo = { latitude, longitude, accuracy, ts };
 
-          // Отправляем каждое обновление как "live гео"
           sendPayload({
             type: "geo_stream",
             lat: latitude,
@@ -721,7 +536,7 @@
           console.error("Geolocation error:", err);
           setStatus(
             "Не удалось получить геопозицию.",
-            "Проверьте разрешения на геолокацию в Telegram/браузере."
+            "Проверьте разрешения на геолокацию в Telegram."
           );
           stopGeoStream();
         },
@@ -754,7 +569,9 @@
     $("btnGeoStart").addEventListener("click", startGeoStream);
     $("btnGeoStop").addEventListener("click", stopGeoStream);
 
-    // Отметиться
+    // ------------------------------
+    //  СТУДЕНТ: ОТМЕТКА
+    // ------------------------------
     $("btnStudentCheckin").addEventListener("click", () => {
       const fio = $("studentFio").value.trim();
       const email = $("studentEmail").value.trim();
@@ -768,12 +585,12 @@
 
       setStatus(
         "Запрос на отметку отправлен.",
-        "Бот проверит QR, геозону, уникальность устройства и решит, засчитывать ли посещение."
+        "Бот проверит QR, геозону, уникальность устройства (на своей стороне)."
       );
     });
 
     // ------------------------------
-    //  ПАНЕЛЬ СПИКЕРА
+    //  СПИКЕР
     // ------------------------------
     $("btnSpeakerOpenLecture").addEventListener("click", () => {
       const id = $("speakerLectureId").value.trim();
@@ -787,8 +604,8 @@
         lectureId: id,
       });
       setStatus(
-        "Лекция открыта для отметок.",
-        "Бот начнёт принимать отметки по этому ID и QR-коду."
+        "Лекция открыта (запрос отправлен).",
+        "Бот проверит ваши права спикера."
       );
     });
 
@@ -799,8 +616,8 @@
         lectureId: id,
       });
       setStatus(
-        "Лекция закрыта.",
-        "Новые отметки по этой лекции приниматься не будут."
+        "Лекция закрыта (запрос отправлен).",
+        "Решение принимает бот."
       );
     });
 
@@ -812,11 +629,22 @@
         );
         return;
       }
+      const id = $("speakerLectureId").value.trim() || state.lectureId;
+      if (!id) {
+        setStatus(
+          "Укажите ID лекции для геозоны.",
+          "В панели спикера заполните поле ID лекции."
+        );
+        return;
+      }
+      state.lectureId = id;
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude, accuracy } = pos.coords;
           sendPayload({
             type: "speaker_set_geo",
+            lectureId: id,
             lat: latitude,
             lon: longitude,
             accuracy,
@@ -844,7 +672,7 @@
     });
 
     // ------------------------------
-    //  ПАНЕЛЬ АДМИНА
+    //  АДМИН
     // ------------------------------
     $("btnAdminSetRole").addEventListener("click", () => {
       const uid = $("adminTargetUserId").value.trim();
@@ -856,11 +684,13 @@
         );
         return;
       }
+
       sendPayload({
         type: "admin_set_role",
         targetUserId: uid,
         newRole: role,
       });
+
       setStatus(
         "Запрос на смену роли отправлен.",
         `Пользователь ${uid} → роль ${role}.`
@@ -872,7 +702,7 @@
       if (!id) {
         setStatus(
           "Укажите ID лекции для статистики.",
-          "Например, LEC123 или другой идентификатор."
+          "Например, LEC123."
         );
         return;
       }
@@ -882,7 +712,7 @@
       });
       setStatus(
         "Запрос статистики отправлен.",
-        "Бот может прислать итоги в чат, Google Sheets или другим способом."
+        "Бот пришлёт сводку в чат."
       );
     });
   </script>
