@@ -2,678 +2,341 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>MIREA Attendance Mini App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
+  <title>Attendance WebApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Telegram WebApp JS -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
   <style>
-    .tg-warning-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15,23,42,0.96);
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--tg-theme-bg-color, #0f1419);
+      color: var(--tg-theme-text-color, #fff);
+    }
+    body {
+      margin: 0;
+      padding: 12px;
+      background: var(--tg-theme-bg-color, #0f1419);
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 16px 0 8px;
+    }
+    .card {
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: var(--tg-theme-secondary-bg-color, #161b22);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      margin: 6px 0 2px;
+    }
+    input {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--tg-theme-hint-color, #444);
+      font-size: 14px;
+      background: transparent;
+      color: inherit;
+      box-sizing: border-box;
+    }
+    .row {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #e5e7eb;
-      padding: 1.5rem;
-      z-index: 9999;
-      text-align: center;
+      gap: 8px;
+    }
+    .row > div {
+      flex: 1;
+    }
+    button {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--tg-theme-button-color, #2ea043);
+      color: var(--tg-theme-button-text-color, #fff);
+    }
+    button.secondary {
+      background: transparent;
+      border: 1px solid var(--tg-theme-hint-color, #444);
+      color: var(--tg-theme-text-color, #fff);
+    }
+    .small {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid var(--tg-theme-hint-color, #444);
+      background: transparent;
+      color: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--tg-theme-button-color, #2ea043);
+      color: var(--tg-theme-button-text-color, #fff);
+      border-color: transparent;
+    }
+    .hidden { display: none; }
+    .status {
+      font-size: 12px;
+      margin-top: 6px;
+      white-space: pre-line;
     }
   </style>
 </head>
-<body class="bg-slate-950 min-h-screen flex justify-center">
-  <!-- Оверлей, если НЕ Telegram -->
-  <div id="notTelegramOverlay" class="tg-warning-overlay hidden">
-    <h2 class="text-xl font-bold mb-2">Открой через Telegram</h2>
-    <p class="text-sm text-slate-300 mb-4 max-w-md">
-      Это мини-приложение работает только внутри Telegram WebApp.<br/>
-      Открой бота и нажми кнопку <b>«Открыть мини-аппу»</b>.
-    </p>
-    <p class="text-xs text-slate-500">
-      В обычном браузере не работают Telegram API (сканер QR, initData, secure-данные).
-    </p>
+<body>
+  <h1>Отметка на лекции</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="student">Студент</button>
+    <button class="tab-btn" data-tab="speaker">Спикер / Админ</button>
+    <button class="tab-btn" data-tab="service">Сервис</button>
   </div>
 
-  <div
-    id="app"
-    class="w-full max-w-lg px-4 py-6 sm:px-6 sm:py-8 text-slate-50 font-sans"
-  >
-    <!-- HEADER -->
-    <header class="mb-6">
-      <h1 class="text-2xl font-bold tracking-tight mb-1">
-        MIREA Attendance
-      </h1>
-      <p class="text-sm text-slate-300">
-        Мини-приложение для отметок посещаемости.
-      </p>
+  <!-- Студент -->
+  <div id="tab-student" class="card">
+    <h2>Студент</h2>
+    <label>ID лекции</label>
+    <input id="st-lecture-id" type="number" placeholder="Например, 1" />
 
-      <div
-        id="userInfo"
-        class="mt-4 flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs"
-      >
-        <div>
-          <div id="tgName" class="font-semibold">Пользователь Telegram</div>
-          <div id="tgUid" class="text-slate-400">ID: —</div>
-        </div>
-        <span
-          id="tgRoleLabel"
-          class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-300 border border-sky-500/40"
-        >
-          Режим: студент
-        </span>
+    <label>QR payload</label>
+    <input id="st-qr" type="text" placeholder="ATTEND:1:secret" />
+
+    <div class="row">
+      <div>
+        <label>Широта (lat)</label>
+        <input id="st-lat" type="text" placeholder="Авто" />
       </div>
-    </header>
-
-    <!-- STATUS BAR -->
-    <section
-      id="statusBar"
-      class="mb-4 bg-slate-900/60 border border-slate-800 rounded-2xl px-3 py-2 text-xs text-slate-300"
-    >
-      <div id="statusMain" class="font-semibold text-slate-100">
-        Готово к работе.
+      <div>
+        <label>Долгота (lon)</label>
+        <input id="st-lon" type="text" placeholder="Авто" />
       </div>
-      <div id="statusSecondary" class="text-[11px] text-slate-400 mt-1">
-        Весь доступ реально проверяется на стороне бота. Интерфейс — только UI.
+    </div>
+
+    <button id="st-get-location" type="button">Получить геолокацию</button>
+    <button id="st-check-in" type="button">Отметиться</button>
+
+    <div class="small">
+      При сильном расхождении координат бот попросит отправить видео-кружок
+      в чат, где вас видит команда рейтинга.
+    </div>
+
+    <div id="st-status" class="status"></div>
+  </div>
+
+  <!-- Спикер / админ -->
+  <div id="tab-speaker" class="card hidden">
+    <h2>Спикер / Мастер-админ</h2>
+    <label>ID лекции</label>
+    <input id="sp-lecture-id" type="number" placeholder="Например, 1" />
+
+    <div class="row">
+      <div>
+        <label>Радиус, м</label>
+        <input id="sp-radius" type="number" value="100" />
       </div>
-    </section>
+    </div>
 
-    <!-- MAIN CONTENT -->
-    <main class="space-y-4 mb-8">
+    <button id="sp-set-location" type="button">Обновить точку лекции по текущей геолокации</button>
+    <button id="sp-toggle-open" type="button">Открыть/закрыть отметку</button>
+    <button id="sp-list-lectures" class="secondary" type="button">
+      Мои лекции (список придёт в чат)
+    </button>
 
-      <!-- STUDENT PANEL -->
-      <section
-        id="panel-student"
-        class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-4"
-      >
-        <h2 class="text-sm font-semibold text-slate-100 mb-1">
-          Панель студента
-        </h2>
-        <p class="text-xs text-slate-400 mb-2">
-          Заполните профиль, привяжитесь к лекции, включите трансляцию
-          геопозиции и отправьте отметку.
-        </p>
+    <div class="small">
+      При обновлении точки радиус задаёт допустимое расстояние для отметки.
+    </div>
 
-        <!-- Профиль -->
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">
-            Профиль для регистрации
-          </h3>
-          <input
-            id="studentFio"
-            type="text"
-            placeholder="Фамилия Имя Отчество"
-            class="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
-          <input
-            id="studentEmail"
-            type="email"
-            placeholder="Почта @edu.mirea.ru"
-            class="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
-          <button
-            id="btnStudentRegister"
-            class="w-full mt-1 inline-flex justify-center items-center gap-1 rounded-xl bg-sky-500 hover:bg-sky-600 text-xs font-semibold py-2.5"
-          >
-            Сохранить профиль / зарегистрироваться
-          </button>
-        </div>
+    <div id="sp-status" class="status"></div>
+  </div>
 
-        <hr class="border-slate-800 my-2" />
-
-        <!-- QR и лекция -->
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">
-            QR-код лекции
-          </h3>
-          <button
-            id="btnStudentScanQR"
-            class="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-xs font-semibold py-2.5"
-          >
-            📷 Сканировать QR лекции
-          </button>
-          <p
-            id="studentLectureInfo"
-            class="text-[11px] text-slate-400 mt-1 break-words"
-          >
-            Лекция ещё не выбрана. Отсканируйте QR-код лекции внутри Telegram.
-          </p>
-        </div>
-
-        <hr class="border-slate-800 my-2" />
-
-        <!-- Live GEO -->
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">
-            Трансляция геопозиции (live)
-          </h3>
-          <p class="text-[11px] text-slate-400">
-            При включении используется <b>watchPosition()</b> и координаты
-            периодически отправляются боту. Это максимально приближено
-            к трансляции геолокации.
-          </p>
-
-          <div class="flex gap-2">
-            <button
-              id="btnGeoStart"
-              class="flex-1 inline-flex justify-center items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold py-2.5 disabled:bg-emerald-900/60 disabled:text-emerald-200/60"
-            >
-              ▶️ Включить трансляцию
-            </button>
-            <button
-              id="btnGeoStop"
-              class="flex-1 inline-flex justify-center items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold py-2.5 disabled:bg-rose-900/60 disabled:text-rose-200/60"
-              disabled
-            >
-              ⏹ Выключить
-            </button>
-          </div>
-
-          <div
-            id="geoStatusBox"
-            class="mt-1 text-[11px] text-slate-400 space-y-0.5"
-          >
-            <div id="geoStatusMain">Трансляция выключена.</div>
-            <div id="geoStatusLast">Последнее обновление: —</div>
-          </div>
-        </div>
-
-        <hr class="border-slate-800 my-2" />
-
-        <!-- Отметиться -->
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">
-            Отметиться на лекции
-          </h3>
-          <button
-            id="btnStudentCheckin"
-            class="w-full inline-flex justify-center items-center gap-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-semibold py-2.5"
-          >
-            ✅ Отправить отметку
-          </button>
-          <p class="text-[11px] text-slate-400">
-            Отметка уйдёт боту вместе с ФИО, почтой, ID лекции и последней
-            геопозицией (если трансляция включена).
-          </p>
-        </div>
-      </section>
-
-      <!-- SPEAKER PANEL -->
-      <section
-        id="panel-speaker"
-        class="hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-4"
-      >
-        <h2 class="text-sm font-semibold text-slate-100 mb-1">
-          Панель спикера
-        </h2>
-        <p class="text-xs text-slate-400 mb-2">
-          Открывайте/закрывайте лекции, задавайте геозону аудитории.
-        </p>
-
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">Лекция</h3>
-          <input
-            id="speakerLectureId"
-            type="text"
-            placeholder="ID лекции (например, LEC123)"
-            class="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
-          <div class="flex gap-2">
-            <button
-              id="btnSpeakerOpenLecture"
-              class="flex-1 inline-flex justify-center items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold py-2.5"
-            >
-              🔓 Открыть отметку
-            </button>
-            <button
-              id="btnSpeakerCloseLecture"
-              class="flex-1 inline-flex justify-center items-center gap-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-semibold py-2.5"
-            >
-              🔒 Закрыть
-            </button>
-          </div>
-        </div>
-
-        <hr class="border-slate-800 my-2" />
-
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">
-            Геолокация лекции
-          </h3>
-          <button
-            id="btnSpeakerSetGeo"
-            class="w-full inline-flex justify-center items-center gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold py-2.5"
-          >
-            📍 Установить геозону по текущей позиции
-          </button>
-          <p class="text-[11px] text-slate-400">
-            Берём координаты один раз и отправляем их боту как центр радиуса.
-          </p>
-        </div>
-      </section>
-
-      <!-- ADMIN PANEL -->
-      <section
-        id="panel-admin"
-        class="hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-4"
-      >
-        <h2 class="text-sm font-semibold text-slate-100 mb-1">
-          Панель мастер-админа
-        </h2>
-        <p class="text-xs text-slate-400 mb-2">
-          Управление ролями и запрос статистики посещаемости.
-        </p>
-
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">
-            Управление ролями
-          </h3>
-          <input
-            id="adminTargetUserId"
-            type="number"
-            placeholder="Telegram user_id"
-            class="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
-          <select
-            id="adminTargetRole"
-            class="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
-          >
-            <option value="student">student</option>
-            <option value="speaker">speaker</option>
-            <option value="rating">rating</option>
-            <option value="admin">admin</option>
-          </select>
-          <button
-            id="btnAdminSetRole"
-            class="w-full inline-flex justify-center items-center gap-1 rounded-xl bg-sky-500 hover:bg-sky-600 text-xs font-semibold py-2.5"
-          >
-            👤 Установить роль пользователю
-          </button>
-        </div>
-
-        <hr class="border-slate-800 my-2" />
-
-        <div class="space-y-2">
-          <h3 class="text-xs font-semibold text-slate-300">
-            Статистика лекции
-          </h3>
-          <input
-            id="adminStatsLectureId"
-            type="text"
-            placeholder="ID лекции (например, LEC123)"
-            class="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-          />
-          <button
-            id="btnAdminRequestStats"
-            class="w-full inline-flex justify-center items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold py-2.5"
-          >
-            📊 Запросить статистику посещаемости
-          </button>
-        </div>
-      </section>
-    </main>
-
-    <footer class="text-[10px] text-slate-500 text-center">
-      Все реальные проверки (роли, геозона, уникальность, QR) делает бот.
-    </footer>
+  <!-- Сервис -->
+  <div id="tab-service" class="card hidden">
+    <h2>Сервис / Отладка</h2>
+    <button id="sv-ping" type="button">Отправить ping боту</button>
+    <div class="small">
+      Если WebApp работает, в чате придёт сообщение «Ping от WebApp получен».
+    </div>
+    <div class="small">
+      Список лекций для мастер-админа доступен через вкладку «Спикер / Админ».
+    </div>
+    <div id="sv-status" class="status"></div>
   </div>
 
   <script>
-    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-    const $ = (id) => document.getElementById(id);
+    const tg = window.Telegram.WebApp;
+    tg.expand(); // раскрыть на весь экран
 
-    function setStatus(main, secondary) {
-      if (main) $("statusMain").textContent = main;
-      if (secondary) $("statusSecondary").textContent = secondary;
-    }
+    const studentTabBtn = document.querySelector('[data-tab="student"]');
+    const speakerTabBtn = document.querySelector('[data-tab="speaker"]');
+    const serviceTabBtn = document.querySelector('[data-tab="service"]');
+    const tabBtns = [studentTabBtn, speakerTabBtn, serviceTabBtn];
 
-    function ensureTelegramEnv() {
-      // ВАЖНО: проверяем наличие свойства, а не его "правдивость". Пустая строка initData внутри Telegram – ок.
-      if (!tg || typeof tg.initData === "undefined") {
-        $("notTelegramOverlay").classList.remove("hidden");
-        $("app").classList.add("opacity-20");
-        return false;
-      }
-      $("notTelegramOverlay").classList.add("hidden");
-      $("app").classList.remove("opacity-20");
-      return true;
-    }
+    const tabStudent = document.getElementById("tab-student");
+    const tabSpeaker = document.getElementById("tab-speaker");
+    const tabService = document.getElementById("tab-service");
 
-    const inTelegram = ensureTelegramEnv();
-
-    if (inTelegram) {
-      tg.ready();
-      tg.expand();
-    }
-
-    // UI режим (только визуально: student/speaker/admin)
-    const params = new URLSearchParams(window.location.search);
-    let uiMode = (params.get("mode") || "student").toLowerCase();
-    if (!["student", "speaker", "admin"].includes(uiMode)) {
-      uiMode = "student";
-    }
-
-    function updateModeUI() {
-      $("panel-student").classList.add("hidden");
-      $("panel-speaker").classList.add("hidden");
-      $("panel-admin").classList.add("hidden");
-
-      if (uiMode === "student") $("panel-student").classList.remove("hidden");
-      if (uiMode === "speaker") $("panel-speaker").classList.remove("hidden");
-      if (uiMode === "admin") $("panel-admin").classList.remove("hidden");
-
-      const label =
-        uiMode === "student"
-          ? "Режим: студент"
-          : uiMode === "speaker"
-          ? "Режим: спикер (UI)"
-          : "Режим: мастер-админ (UI)";
-      $("tgRoleLabel").textContent = label;
-    }
-    updateModeUI();
-
-    // Инфа о пользователе Telegram
-    if (inTelegram) {
-      const u = tg.initDataUnsafe && tg.initDataUnsafe.user;
-      if (u) {
-        $("tgName").textContent = (u.first_name || "") + " " + (u.last_name || "");
-        $("tgUid").textContent = "ID: " + u.id;
-      }
-    }
-
-    function sendPayload(payload) {
-      const full = {
-        ...payload,
-        lectureId: state.lectureId,
-        mode: uiMode,
-      };
-
-      if (!inTelegram) {
-        console.log("Payload (no Telegram):", full);
-        alert("Это только демо вне Telegram:\n\n" + JSON.stringify(full, null, 2));
-        return;
-      }
-
-      tg.sendData(JSON.stringify(full));
-    }
-
-    const state = {
-      lectureId: null,
-      geoWatchId: null,
-      lastGeo: null,
-    };
-
-    // STUDENT: профиль
-    $("btnStudentRegister").addEventListener("click", () => {
-      const fio = $("studentFio").value.trim();
-      const email = $("studentEmail").value.trim();
-
-      if (!fio || !email) {
-        setStatus(
-          "Заполните ФИО и почту.",
-          "Поля «Фамилия Имя Отчество» и «Почта @edu.mirea.ru» обязательны."
-        );
-        return;
-      }
-
-      sendPayload({
-        type: "register",
-        fio,
-        email,
+    function switchTab(name) {
+      tabStudent.classList.toggle("hidden", name !== "student");
+      tabSpeaker.classList.toggle("hidden", name !== "speaker");
+      tabService.classList.toggle("hidden", name !== "service");
+      tabBtns.forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tab === name);
       });
+    }
 
-      setStatus(
-        "Профиль отправлен на обновление.",
-        "Бот свяжет его с вашим Telegram ID."
-      );
+    tabBtns.forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
 
-    // STUDENT: QR
-    $("btnStudentScanQR").addEventListener("click", () => {
-      if (!inTelegram || typeof tg.scanQrPopup !== "function") {
-        setStatus(
-          "QR-сканер недоступен.",
-          "Открой мини-аппу внутри Telegram на мобильном устройстве."
-        );
-        return;
-      }
+    // --- Студент ---
+    const stLectureId = document.getElementById("st-lecture-id");
+    const stQr = document.getElementById("st-qr");
+    const stLat = document.getElementById("st-lat");
+    const stLon = document.getElementById("st-lon");
+    const stStatus = document.getElementById("st-status");
 
-      tg.scanQrPopup({ text: "Отсканируйте QR-код лекции" }, (result) => {
-        state.lectureId = result;
-        $("studentLectureInfo").textContent =
-          "Текущая лекция: " + result + " (ID передан боту).";
-
-        sendPayload({
-          type: "qr_scan",
-          qr: result,
-        });
-
-        setStatus(
-          "QR-код отсканирован.",
-          "Лекция привязана к вашему сеансу, дальше проверяет бот."
-        );
-      });
-    });
-
-    // STUDENT: GEO
-    function startGeoStream() {
+    document.getElementById("st-get-location").addEventListener("click", () => {
+      stStatus.textContent = "Запрашиваем геолокацию...";
       if (!navigator.geolocation) {
-        setStatus(
-          "Геолокация не поддерживается.",
-          "Браузер/клиент не предоставляет navigator.geolocation."
-        );
+        stStatus.textContent = "Геолокация браузером не поддерживается.";
         return;
       }
-      if (state.geoWatchId !== null) {
-        setStatus(
-          "Трансляция уже включена.",
-          "Мы уже отслеживаем вашу позицию и отправляем обновления боту."
-        );
-        return;
-      }
-
-      const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const { latitude, longitude, accuracy } = pos.coords;
-          const ts = Date.now();
-          state.lastGeo = { latitude, longitude, accuracy, ts };
-
-          sendPayload({
-            type: "geo_stream",
-            lat: latitude,
-            lon: longitude,
-            accuracy,
-            timestamp: ts,
-          });
-
-          $("geoStatusMain").textContent =
-            "Трансляция включена. Координаты обновлены.";
-          $("geoStatusLast").textContent =
-            "Последнее обновление: " +
-            new Date(ts).toLocaleTimeString() +
-            ` (lat=${latitude.toFixed(5)}, lon=${longitude.toFixed(
-              5
-            )}, ±${Math.round(accuracy)} м)`;
-        },
-        (err) => {
-          console.error("Geolocation error:", err);
-          setStatus(
-            "Не удалось получить геопозицию.",
-            "Проверьте разрешения на геолокацию в Telegram."
-          );
-          stopGeoStream();
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 10000,
-        }
-      );
-
-      state.geoWatchId = watchId;
-      $("btnGeoStart").disabled = true;
-      $("btnGeoStop").disabled = false;
-      $("geoStatusMain").textContent =
-        "Трансляция включена, ждём первое обновление координат...";
-      $("geoStatusLast").textContent = "Последнее обновление: —";
-    }
-
-    function stopGeoStream() {
-      if (state.geoWatchId !== null) {
-        navigator.geolocation.clearWatch(state.geoWatchId);
-        state.geoWatchId = null;
-      }
-      $("btnGeoStart").disabled = false;
-      $("btnGeoStop").disabled = true;
-      $("geoStatusMain").textContent = "Трансляция выключена.";
-      $("geoStatusLast").textContent = "Последнее обновление: —";
-    }
-
-    $("btnGeoStart").addEventListener("click", startGeoStream);
-    $("btnGeoStop").addEventListener("click", stopGeoStream);
-
-    // STUDENT: checkin
-    $("btnStudentCheckin").addEventListener("click", () => {
-      const fio = $("studentFio").value.trim();
-      const email = $("studentEmail").value.trim();
-
-      sendPayload({
-        type: "checkin",
-        fio,
-        email,
-        lastGeo: state.lastGeo || null,
-      });
-
-      setStatus(
-        "Запрос на отметку отправлен.",
-        "Бот проверит QR, геозону, уникальность отметки и устройство."
-      );
-    });
-
-    // SPEAKER
-    $("btnSpeakerOpenLecture").addEventListener("click", () => {
-      const id = $("speakerLectureId").value.trim();
-      if (!id) {
-        setStatus("Укажите ID лекции.", "Например, LEC123.");
-        return;
-      }
-      state.lectureId = id;
-      sendPayload({
-        type: "speaker_open_lecture",
-        lectureId: id,
-      });
-      setStatus(
-        "Лекция открыта (запрос отправлен).",
-        "Бот проверит ваши права спикера."
-      );
-    });
-
-    $("btnSpeakerCloseLecture").addEventListener("click", () => {
-      const id = $("speakerLectureId").value.trim() || state.lectureId;
-      sendPayload({
-        type: "speaker_close_lecture",
-        lectureId: id,
-      });
-      setStatus(
-        "Лекция закрыта (запрос отправлен).",
-        "Решение принимает бот."
-      );
-    });
-
-    $("btnSpeakerSetGeo").addEventListener("click", () => {
-      if (!navigator.geolocation) {
-        setStatus(
-          "Геолокация не поддерживается.",
-          "Невозможно задать геозону аудитории."
-        );
-        return;
-      }
-      const id = $("speakerLectureId").value.trim() || state.lectureId;
-      if (!id) {
-        setStatus(
-          "Укажите ID лекции для геозоны.",
-          "В панели спикера заполните поле ID лекции."
-        );
-        return;
-      }
-      state.lectureId = id;
-
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const { latitude, longitude, accuracy } = pos.coords;
-          sendPayload({
-            type: "speaker_set_geo",
-            lectureId: id,
-            lat: latitude,
-            lon: longitude,
-            accuracy,
-          });
-          setStatus(
-            "Геозона лекции отправлена.",
-            `Центр: lat=${latitude.toFixed(
-              5
-            )}, lon=${longitude.toFixed(5)}, ±${Math.round(accuracy)} м.`
-          );
+          const { latitude, longitude } = pos.coords;
+          stLat.value = latitude.toFixed(6);
+          stLon.value = longitude.toFixed(6);
+          stStatus.textContent = "Координаты обновлены.";
         },
         (err) => {
-          console.error(err);
-          setStatus(
-            "Не удалось получить геопозицию.",
-            "Проверьте разрешения на геолокацию."
-          );
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 10000,
+          stStatus.textContent = "Ошибка получения геолокации: " + err.message;
         }
       );
     });
 
-    // ADMIN
-    $("btnAdminSetRole").addEventListener("click", () => {
-      const uid = $("adminTargetUserId").value.trim();
-      const role = $("adminTargetRole").value;
-      if (!uid) {
-        setStatus("Укажите Telegram user_id.", "Например, его можно взять из /whoami.");
+    document.getElementById("st-check-in").addEventListener("click", () => {
+      const lectureId = Number(stLectureId.value);
+      const qrPayload = stQr.value.trim();
+      const lat = Number(stLat.value || NaN);
+      const lon = Number(stLon.value || NaN);
+
+      if (!lectureId || !qrPayload || isNaN(lat) || isNaN(lon)) {
+        stStatus.textContent = "Заполните ID лекции, QR и координаты.";
         return;
       }
 
-      sendPayload({
-        type: "admin_set_role",
-        targetUserId: uid,
-        newRole: role,
-      });
-
-      setStatus(
-        "Запрос на смену роли отправлен.",
-        `Пользователь ${uid} → роль ${role}.`
-      );
+      const data = {
+        action: "check_in",
+        lecture_id: lectureId,
+        qr_payload: qrPayload,
+        lat,
+        lon,
+      };
+      tg.sendData(JSON.stringify(data));
+      stStatus.textContent = "Отправлено в бота. Результат придёт в чат.";
     });
 
-    $("btnAdminRequestStats").addEventListener("click", () => {
-      const id = $("adminStatsLectureId").value.trim();
-      if (!id) {
-        setStatus(
-          "Укажите ID лекции для статистики.",
-          "Например, LEC123."
-        );
+    // --- Спикер / админ ---
+    const spLectureId = document.getElementById("sp-lecture-id");
+    const spRadius = document.getElementById("sp-radius");
+    const spStatus = document.getElementById("sp-status");
+
+    function getCurrentLocation(cb) {
+      if (!navigator.geolocation) {
+        cb(null, "Геолокация браузером не поддерживается.");
         return;
       }
-      sendPayload({
-        type: "admin_request_stats",
-        lectureId: id,
-      });
-      setStatus(
-        "Запрос статистики отправлен.",
-        "Бот пришлёт сводку в чат."
+      navigator.geolocation.getCurrentPosition(
+        (pos) => cb(pos.coords, null),
+        (err) => cb(null, err.message)
       );
+    }
+
+    document.getElementById("sp-set-location").addEventListener("click", () => {
+      const lectureId = Number(spLectureId.value);
+      const radius = Number(spRadius.value || 100);
+      if (!lectureId) {
+        spStatus.textContent = "Укажите ID лекции.";
+        return;
+      }
+      spStatus.textContent = "Получаем геолокацию...";
+      getCurrentLocation((coords, err) => {
+        if (err) {
+          spStatus.textContent = "Ошибка геолокации: " + err;
+          return;
+        }
+        const lat = Number(coords.latitude.toFixed(6));
+        const lon = Number(coords.longitude.toFixed(6));
+        const payload = {
+          action: "update_location",
+          lecture_id: lectureId,
+          lat,
+          lon,
+          radius_m: radius || 100,
+        };
+        tg.sendData(JSON.stringify(payload));
+        spStatus.textContent = "Данные отправлены. Ответ придёт в чат.";
+      });
     });
+
+    document.getElementById("sp-toggle-open").addEventListener("click", () => {
+      const lectureId = Number(spLectureId.value);
+      if (!lectureId) {
+        spStatus.textContent = "Укажите ID лекции.";
+        return;
+      }
+      const payload = {
+        action: "toggle_open",
+        lecture_id: lectureId,
+      };
+      tg.sendData(JSON.stringify(payload));
+      spStatus.textContent = "Запрос на открытие/закрытие отправлен.";
+    });
+
+    document.getElementById("sp-list-lectures").addEventListener("click", () => {
+      const payload = {
+        action: "list_lectures",
+      };
+      tg.sendData(JSON.stringify(payload));
+      spStatus.textContent = "Запрос списка лекций отправлен. Ответ придёт в чат.";
+    });
+
+    // --- Сервис / ping ---
+    const svStatus = document.getElementById("sv-status");
+    document.getElementById("sv-ping").addEventListener("click", () => {
+      const payload = { action: "debug_ping" };
+      tg.sendData(JSON.stringify(payload));
+      svStatus.textContent = "Ping отправлен, сообщение от бота придёт в чат.";
+    });
+
+    // TODO: интеграция QRScanner из Telegram Mini Apps SDK:
+    // можно подключить @telegram-apps/sdk через bundler и сделать кнопку:
+    // const qrScanner = initQRScanner();
+    // qrScanner.open('Сканируйте QR').then((content) => {
+    //   stQr.value = content || '';
+    // });
+    // Документация: https://docs.telegram-mini-apps.com/packages/telegram-apps-sdk/1-x/components/qr-scanner
   </script>
 </body>
 </html>
