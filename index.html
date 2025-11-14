@@ -33,10 +33,10 @@
     <h2 class="text-xl font-bold mb-2">Открой через Telegram</h2>
     <p class="text-sm text-slate-300 mb-4 max-w-md">
       Это мини-приложение работает только внутри Telegram WebApp.<br/>
-      Открой бота и нажми кнопку <b>«Открыть мини-аппу»</b> или кнопку в командах.
+      Открой бота и нажми кнопку <b>«Открыть мини-аппу»</b>.
     </p>
     <p class="text-xs text-slate-500">
-      В обычном браузере не работают Telegram API (сканер QR, данные пользователя, secure initData).
+      В обычном браузере не работают Telegram API (сканер QR, initData, secure-данные).
     </p>
   </div>
 
@@ -215,7 +215,6 @@
           Открывайте/закрывайте лекции, задавайте геозону аудитории.
         </p>
 
-        <!-- Управление лекцией -->
         <div class="space-y-2">
           <h3 class="text-xs font-semibold text-slate-300">Лекция</h3>
           <input
@@ -242,7 +241,6 @@
 
         <hr class="border-slate-800 my-2" />
 
-        <!-- Геозона -->
         <div class="space-y-2">
           <h3 class="text-xs font-semibold text-slate-300">
             Геолокация лекции
@@ -254,8 +252,7 @@
             📍 Установить геозону по текущей позиции
           </button>
           <p class="text-[11px] text-slate-400">
-            Одноразово берём координаты и отправляем их боту как центр допустимого
-            радиуса.
+            Берём координаты один раз и отправляем их боту как центр радиуса.
           </p>
         </div>
       </section>
@@ -321,18 +318,13 @@
       </section>
     </main>
 
-    <!-- FOOTER -->
     <footer class="text-[10px] text-slate-500 text-center">
       Все реальные проверки (роли, геозона, уникальность, QR) делает бот.
     </footer>
   </div>
 
   <script>
-    // ------------------------------
-    //  ПОДГОТОВКА
-    // ------------------------------
-    const tg = window.Telegram?.WebApp || null;
-
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
     const $ = (id) => document.getElementById(id);
 
     function setStatus(main, secondary) {
@@ -340,16 +332,15 @@
       if (secondary) $("statusSecondary").textContent = secondary;
     }
 
-    // Проверяем, что запущено в Telegram
     function ensureTelegramEnv() {
-      if (!tg || !tg.initDataUnsafe || !tg.initData) {
-        document.getElementById("notTelegramOverlay").classList.remove("hidden");
-        // Блокируем основное приложение
-        document.getElementById("app").classList.add("opacity-20");
+      // ВАЖНО: проверяем наличие свойства, а не его "правдивость". Пустая строка initData внутри Telegram – ок.
+      if (!tg || typeof tg.initData === "undefined") {
+        $("notTelegramOverlay").classList.remove("hidden");
+        $("app").classList.add("opacity-20");
         return false;
       }
-      document.getElementById("notTelegramOverlay").classList.add("hidden");
-      document.getElementById("app").classList.remove("opacity-20");
+      $("notTelegramOverlay").classList.add("hidden");
+      $("app").classList.remove("opacity-20");
       return true;
     }
 
@@ -360,9 +351,7 @@
       tg.expand();
     }
 
-    // ------------------------------
-    //  РЕЖИМ (student / speaker / admin)
-    // ------------------------------
+    // UI режим (только визуально: student/speaker/admin)
     const params = new URLSearchParams(window.location.search);
     let uiMode = (params.get("mode") || "student").toLowerCase();
     if (!["student", "speaker", "admin"].includes(uiMode)) {
@@ -374,54 +363,42 @@
       $("panel-speaker").classList.add("hidden");
       $("panel-admin").classList.add("hidden");
 
-      if (uiMode === "student") {
-        $("panel-student").classList.remove("hidden");
-      } else if (uiMode === "speaker") {
-        $("panel-speaker").classList.remove("hidden");
-      } else if (uiMode === "admin") {
-        $("panel-admin").classList.remove("hidden");
-      }
+      if (uiMode === "student") $("panel-student").classList.remove("hidden");
+      if (uiMode === "speaker") $("panel-speaker").classList.remove("hidden");
+      if (uiMode === "admin") $("panel-admin").classList.remove("hidden");
 
-      const label = uiMode === "student"
-        ? "Режим: студент"
-        : uiMode === "speaker"
-        ? "Режим: спикер (UI)"
-        : "Режим: мастер-админ (UI)";
-
+      const label =
+        uiMode === "student"
+          ? "Режим: студент"
+          : uiMode === "speaker"
+          ? "Режим: спикер (UI)"
+          : "Режим: мастер-админ (UI)";
       $("tgRoleLabel").textContent = label;
     }
-
     updateModeUI();
 
-    // ------------------------------
-    //  ИНФА О ПОЛЬЗОВАТЕЛЕ
-    // ------------------------------
+    // Инфа о пользователе Telegram
     if (inTelegram) {
-      const u = tg.initDataUnsafe.user;
+      const u = tg.initDataUnsafe && tg.initDataUnsafe.user;
       if (u) {
         $("tgName").textContent = (u.first_name || "") + " " + (u.last_name || "");
         $("tgUid").textContent = "ID: " + u.id;
       }
     }
 
-    // ------------------------------
-    //  ОТПРАВКА PAYLOAD БОТУ
-    // ------------------------------
     function sendPayload(payload) {
       const full = {
         ...payload,
         lectureId: state.lectureId,
-        mode: uiMode, // просто для логов на бэке
+        mode: uiMode,
       };
 
       if (!inTelegram) {
         console.log("Payload (no Telegram):", full);
-        alert(
-          "WebApp открыт вне Telegram. В бою sendData уйдёт боту.\n\n" +
-            JSON.stringify(full, null, 2)
-        );
+        alert("Это только демо вне Telegram:\n\n" + JSON.stringify(full, null, 2));
         return;
       }
+
       tg.sendData(JSON.stringify(full));
     }
 
@@ -431,9 +408,7 @@
       lastGeo: null,
     };
 
-    // ------------------------------
-    //  СТУДЕНТ: ПРОФИЛЬ
-    // ------------------------------
+    // STUDENT: профиль
     $("btnStudentRegister").addEventListener("click", () => {
       const fio = $("studentFio").value.trim();
       const email = $("studentEmail").value.trim();
@@ -458,11 +433,9 @@
       );
     });
 
-    // ------------------------------
-    //  СТУДЕНТ: QR
-    // ------------------------------
+    // STUDENT: QR
     $("btnStudentScanQR").addEventListener("click", () => {
-      if (!inTelegram || !tg.scanQrPopup) {
+      if (!inTelegram || typeof tg.scanQrPopup !== "function") {
         setStatus(
           "QR-сканер недоступен.",
           "Открой мини-аппу внутри Telegram на мобильном устройстве."
@@ -470,29 +443,24 @@
         return;
       }
 
-      tg.scanQrPopup(
-        { text: "Отсканируйте QR-код лекции" },
-        (result) => {
-          state.lectureId = result;
-          $("studentLectureInfo").textContent =
-            "Текущая лекция: " + result + " (ID передан боту).";
+      tg.scanQrPopup({ text: "Отсканируйте QR-код лекции" }, (result) => {
+        state.lectureId = result;
+        $("studentLectureInfo").textContent =
+          "Текущая лекция: " + result + " (ID передан боту).";
 
-          sendPayload({
-            type: "qr_scan",
-            qr: result,
-          });
+        sendPayload({
+          type: "qr_scan",
+          qr: result,
+        });
 
-          setStatus(
-            "QR-код отсканирован.",
-            "Лекция привязана к вашему сеансу. Бот проверяет, что это валидный ID."
-          );
-        }
-      );
+        setStatus(
+          "QR-код отсканирован.",
+          "Лекция привязана к вашему сеансу, дальше проверяет бот."
+        );
+      });
     });
 
-    // ------------------------------
-    //  СТУДЕНТ: LIVE GEO
-    // ------------------------------
+    // STUDENT: GEO
     function startGeoStream() {
       if (!navigator.geolocation) {
         setStatus(
@@ -528,9 +496,9 @@
           $("geoStatusLast").textContent =
             "Последнее обновление: " +
             new Date(ts).toLocaleTimeString() +
-            ` (lat=${latitude.toFixed(5)}, lon=${longitude.toFixed(5)}, ±${Math.round(
-              accuracy
-            )} м)`;
+            ` (lat=${latitude.toFixed(5)}, lon=${longitude.toFixed(
+              5
+            )}, ±${Math.round(accuracy)} м)`;
         },
         (err) => {
           console.error("Geolocation error:", err);
@@ -569,9 +537,7 @@
     $("btnGeoStart").addEventListener("click", startGeoStream);
     $("btnGeoStop").addEventListener("click", stopGeoStream);
 
-    // ------------------------------
-    //  СТУДЕНТ: ОТМЕТКА
-    // ------------------------------
+    // STUDENT: checkin
     $("btnStudentCheckin").addEventListener("click", () => {
       const fio = $("studentFio").value.trim();
       const email = $("studentEmail").value.trim();
@@ -585,13 +551,11 @@
 
       setStatus(
         "Запрос на отметку отправлен.",
-        "Бот проверит QR, геозону, уникальность устройства (на своей стороне)."
+        "Бот проверит QR, геозону, уникальность отметки и устройство."
       );
     });
 
-    // ------------------------------
-    //  СПИКЕР
-    // ------------------------------
+    // SPEAKER
     $("btnSpeakerOpenLecture").addEventListener("click", () => {
       const id = $("speakerLectureId").value.trim();
       if (!id) {
@@ -671,17 +635,12 @@
       );
     });
 
-    // ------------------------------
-    //  АДМИН
-    // ------------------------------
+    // ADMIN
     $("btnAdminSetRole").addEventListener("click", () => {
       const uid = $("adminTargetUserId").value.trim();
       const role = $("adminTargetRole").value;
       if (!uid) {
-        setStatus(
-          "Укажите Telegram user_id.",
-          "Эту информацию можно взять из логов бота."
-        );
+        setStatus("Укажите Telegram user_id.", "Например, его можно взять из /whoami.");
         return;
       }
 
