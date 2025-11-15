@@ -1,65 +1,70 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Сканер QR — посещаемость</title>
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"
-    />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  </head>
-  <body class="bg-slate-900 text-slate-100">
-    <div class="max-w-xl mx-auto px-4 py-6">
-      <h1 class="text-2xl font-bold mb-2">Сканирование QR</h1>
-      <p class="text-sm text-slate-300 mb-4">
-        Открой этот WebApp по кнопке в боте, наведи камеру на QR-код лекции и
-        дождись распознавания. После этого окно закроется, а отметка будет
-        обработана ботом.
+<head>
+  <meta charset="UTF-8" />
+  <title>Отметка по QR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind через CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-50 min-h-screen">
+  <div class="max-w-md mx-auto px-4 py-6 flex flex-col gap-4">
+    <header class="text-center">
+      <h1 class="text-2xl font-bold mb-2">Сканирование QR лекции</h1>
+      <p class="text-sm text-slate-300">
+        Открой это окно <span class="font-semibold">только через кнопку бота</span> «Сканировать QR».
       </p>
+    </header>
 
-      <div class="bg-slate-800 rounded-xl p-4 space-y-3">
-        <button
-          id="btn-start-qr"
-          class="w-full rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
-        >
-          Запустить сканер QR
-        </button>
-
-        <video
-          id="qr-video"
-          class="w-full rounded-lg hidden"
-          autoplay
-          playsinline
-        ></video>
-
-        <div
-          id="qr-zoom-container"
-          class="hidden items-center gap-2 text-xs text-slate-300"
-        >
-          <span>Масштаб камеры</span>
-          <input
-            id="qr-zoom-slider"
-            type="range"
-            min="1"
-            max="5"
-            step="0.1"
-            class="flex-1"
-          />
-        </div>
-
-        <canvas id="qr-canvas" class="hidden"></canvas>
-        <p id="qr-status" class="text-xs text-slate-400"></p>
-      </div>
-
-      <p class="mt-6 text-xs text-slate-500">
-        QR-код должен содержать уникальные данные лекции. Вводить ID лекции не
-        нужно.
-      </p>
+    <div id="authWarning" class="hidden bg-red-500/20 border border-red-500 text-red-100 text-sm rounded-xl px-3 py-2">
+      WebApp не авторизован. Открой сканер через кнопку в чате с ботом, а не по прямой ссылке.
     </div>
 
-    <script src="./main.js"></script>
-  </body>
+    <div id="statusBox" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm">
+      <div class="font-semibold mb-1">Статус</div>
+      <div id="status" class="text-slate-200">Нажми «Начать сканирование».</div>
+    </div>
+
+    <div class="rounded-2xl overflow-hidden border border-slate-700 bg-black aspect-[3/4] flex items-center justify-center">
+      <video
+        id="video"
+        class="w-full h-full object-cover"
+        autoplay
+        playsinline
+      ></video>
+      <canvas id="canvas" class="hidden"></canvas>
+    </div>
+
+    <div id="resultBox" class="hidden bg-emerald-500/10 border border-emerald-500 rounded-xl px-3 py-2 text-xs break-all">
+      <div class="font-semibold mb-1">Содержимое QR:</div>
+      <div id="qrResult"></div>
+    </div>
+
+    <div class="flex gap-2">
+      <button
+        id="startBtn"
+        class="flex-1 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-xl text-sm transition"
+      >
+        Начать сканирование
+      </button>
+      <button
+        id="stopBtn"
+        class="flex-1 bg-slate-700 hover:bg-slate-600 active:bg-slate-700 text-slate-100 font-semibold py-2 px-4 rounded-xl text-sm transition disabled:opacity-40"
+        disabled
+      >
+        Остановить
+      </button>
+    </div>
+
+    <p class="text-xs text-slate-400">
+      Совет: наведи камеру ближе к QR-коду. Камера должна успеть сфокусироваться.
+    </p>
+  </div>
+
+  <!-- jsQR для распознавания QR -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <!-- Telegram WebApp JS (подгружается самим Telegram, но пусть будет импорт) -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="./main.js"></script>
+</body>
 </html>
