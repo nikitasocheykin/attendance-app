@@ -2,173 +2,61 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <title>Attendance WebApp</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Сканер QR — посещаемость</title>
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes"
+    />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   </head>
   <body class="bg-slate-900 text-slate-100">
     <div class="max-w-xl mx-auto px-4 py-6">
-      <h1 class="text-2xl font-bold mb-4">Учёт посещаемости</h1>
-      <p id="user-info" class="mb-4 text-sm text-slate-300"></p>
+      <h1 class="text-2xl font-bold mb-2">Сканирование QR</h1>
+      <p class="text-sm text-slate-300 mb-4">
+        Открой этот WebApp по кнопке в боте, наведи камеру на QR-код лекции и
+        дождись распознавания. После этого окно закроется, а отметка будет
+        обработана ботом.
+      </p>
 
-      <div class="mb-4">
-        <span class="text-xs uppercase text-slate-400">Роль:</span>
-        <span id="role-label" class="ml-2 font-semibold"></span>
+      <div class="bg-slate-800 rounded-xl p-4 space-y-3">
+        <button
+          id="btn-start-qr"
+          class="w-full rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
+        >
+          Запустить сканер QR
+        </button>
+
+        <video
+          id="qr-video"
+          class="w-full rounded-lg hidden"
+          autoplay
+          playsinline
+        ></video>
+
+        <div
+          id="qr-zoom-container"
+          class="hidden items-center gap-2 text-xs text-slate-300"
+        >
+          <span>Масштаб камеры</span>
+          <input
+            id="qr-zoom-slider"
+            type="range"
+            min="1"
+            max="5"
+            step="0.1"
+            class="flex-1"
+          />
+        </div>
+
+        <canvas id="qr-canvas" class="hidden"></canvas>
+        <p id="qr-status" class="text-xs text-slate-400"></p>
       </div>
 
-      <section id="student-panel" class="hidden space-y-4">
-        <h2 class="text-xl font-semibold mb-2">Панель студента</h2>
-        <div class="bg-slate-800 rounded-xl p-4 space-y-3">
-          <p class="text-sm text-slate-300">
-            1. В чате с ботом отправь <b>live-геопозицию</b>.<br />
-            2. На этой странице отсканируй <b>QR-код лекции</b> и укажи ID лекции.
-          </p>
-
-          <label class="block text-sm">
-            ID лекции
-            <input
-              id="student-lecture-id"
-              type="number"
-              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-              placeholder="Например, 1"
-            />
-          </label>
-
-          <div class="space-y-2">
-            <button
-              id="btn-start-qr"
-              class="w-full rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
-            >
-              Запустить сканер QR
-            </button>
-            <video
-              id="qr-video"
-              class="w-full rounded-lg hidden"
-              autoplay
-              playsinline
-            ></video>
-            <canvas id="qr-canvas" class="hidden"></canvas>
-            <p id="qr-status" class="text-xs text-slate-400"></p>
-          </div>
-
-          <button
-            id="btn-send-checkin"
-            class="w-full rounded-lg bg-blue-500 hover:bg-blue-600 px-4 py-2 text-sm font-semibold"
-          >
-            Отправить отметку
-          </button>
-        </div>
-      </section>
-
-      <section id="speaker-panel" class="hidden space-y-4">
-        <h2 class="text-xl font-semibold mb-2">Панель спикера</h2>
-        <div class="bg-slate-800 rounded-xl p-4 space-y-3">
-          <p class="text-sm text-slate-300">
-            Управление окном отметки и координатами лекции по её ID.
-          </p>
-
-          <label class="block text-sm">
-            ID лекции
-            <input
-              id="speaker-lecture-id"
-              type="number"
-              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-            />
-          </label>
-
-          <div class="flex gap-2">
-            <button
-              id="btn-open-checkin"
-              class="flex-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
-            >
-              Открыть окно отметки
-            </button>
-            <button
-              id="btn-close-checkin"
-              class="flex-1 rounded-lg bg-red-500 hover:bg-red-600 px-4 py-2 text-sm font-semibold"
-            >
-              Закрыть окно отметки
-            </button>
-          </div>
-
-          <div class="space-y-2">
-            <p class="text-xs text-slate-400">
-              Координаты можно задать вручную (lat/lon).
-            </p>
-            <div class="grid grid-cols-2 gap-2">
-              <label class="text-sm">
-                Lat
-                <input
-                  id="speaker-lat"
-                  type="number"
-                  step="0.000001"
-                  class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-                />
-              </label>
-              <label class="text-sm">
-                Lon
-                <input
-                  id="speaker-lon"
-                  type="number"
-                  step="0.000001"
-                  class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-                />
-              </label>
-            </div>
-            <button
-              id="btn-set-location"
-              class="w-full rounded-lg bg-blue-500 hover:bg-blue-600 px-4 py-2 text-sm font-semibold"
-            >
-              Установить координаты лекции
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section id="admin-panel" class="hidden space-y-4">
-        <h2 class="text-xl font-semibold mb-2">Панель мастер-админа</h2>
-        <div class="bg-slate-800 rounded-xl p-4 space-y-3">
-          <h3 class="font-semibold text-sm">Настройки системы</h3>
-          <label class="block text-sm">
-            ID чата рейтинговой комиссии
-            <input
-              id="admin-rating-chat-id"
-              type="number"
-              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-            />
-          </label>
-          <button
-            id="btn-admin-set-rating-chat"
-            class="w-full rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-semibold"
-          >
-            Сохранить ID чата комиссии
-          </button>
-
-          <label class="block text-sm">
-            ID Google Sheets (spreadsheet)
-            <input
-              id="admin-sheet-id"
-              type="text"
-              class="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-            />
-          </label>
-          <button
-            id="btn-admin-set-sheet-id"
-            class="w-full rounded-lg bg-blue-500 hover:bg-blue-600 px-4 py-2 text-sm font-semibold"
-          >
-            Сохранить ID Google Sheets
-          </button>
-
-          <p class="text-xs text-slate-400">
-            CRUD по лекциям и ролям можно расширить отдельно, всё также через sendData.
-          </p>
-        </div>
-      </section>
-
       <p class="mt-6 text-xs text-slate-500">
-        Все действия отправляются в бота через Telegram.WebApp.sendData.
+        QR-код должен содержать уникальные данные лекции. Вводить ID лекции не
+        нужно.
       </p>
     </div>
 
