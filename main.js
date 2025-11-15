@@ -1,18 +1,19 @@
 // main.js
 
-// Глобальные переменные
-let tg = window.Telegram.WebApp;
+let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 let videoEl;
 let canvasEl;
 let canvasCtx;
 let stream = null;
 let scanInterval = null;
 
+let zoom = 1.0;
+
 const statusEl = () => document.getElementById("status");
-const statusBoxEl = () => document.getElementById("statusBox");
 const authWarningEl = () => document.getElementById("authWarning");
 const resultBoxEl = () => document.getElementById("resultBox");
 const qrResultEl = () => document.getElementById("qrResult");
+const zoomValueEl = () => document.getElementById("zoomValue");
 
 function setStatus(text) {
   statusEl().textContent = text;
@@ -27,22 +28,34 @@ function showResult(text) {
   resultBoxEl().classList.remove("hidden");
 }
 
+function applyZoom() {
+  if (videoEl) {
+    videoEl.style.transformOrigin = "center center";
+    videoEl.style.transform = `scale(${zoom})`;
+  }
+  if (zoomValueEl()) {
+    zoomValueEl().textContent = `${zoom.toFixed(1)}x`;
+  }
+}
+
 // Инициализация WebApp
 function initTelegramWebApp() {
+  if (!tg) {
+    // Не в телеге
+    showAuthWarning();
+    setStatus("WebApp открыт не в Telegram. Открой через кнопку бота.");
+    return;
+  }
+
   try {
     tg.ready();
     tg.expand();
   } catch (e) {
-    console.error("Telegram WebApp not available:", e);
+    console.warn("Telegram WebApp init error:", e);
   }
 
-  // Проверим, что мини-апп реально открыт из Telegram (есть user)
-  if (!tg.initDataUnsafe || !tg.initDataUnsafe.user) {
-    showAuthWarning();
-    setStatus("WebApp не авторизован. Открой сканер через кнопку бота.");
-  } else {
-    setStatus("Нажми «Начать сканирование», затем наведи камеру на QR.");
-  }
+  // При запуске через KeyboardButton initData может быть пустым — это нормально
+  setStatus("Нажми «Начать сканирование», затем наведи камеру на QR.");
 }
 
 async function startScan() {
@@ -58,7 +71,6 @@ async function startScan() {
   setStatus("Запрашиваем доступ к камере…");
 
   try {
-    // Запрашиваем основную камеру (обычно задняя на телефоне)
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: "environment"
@@ -70,16 +82,16 @@ async function startScan() {
 
     await videoEl.play();
     setStatus("Идёт сканирование… Наведи камеру на QR.");
+    zoom = 1.0;
+    applyZoom();
 
-    // Настраиваем канвас под видео
     canvasEl.width = videoEl.videoWidth || 640;
     canvasEl.height = videoEl.videoHeight || 480;
 
-    // Запускаем цикл сканирования
     scanInterval = setInterval(tickScan, 300);
   } catch (err) {
     console.error("Ошибка доступа к камере", err);
-    setStatus("Не удалось получить доступ к камере. Разреши камеру в настройках.");
+    setStatus("Не удалось получить доступ к камере. Разреши камеру в настройках Telegram.");
     startBtn.disabled = false;
     stopBtn.disabled = true;
   }
@@ -132,17 +144,20 @@ function tickScan() {
 }
 
 function sendCheckInToBot(qrPayload) {
-  // Пакуем данные для бота
+  if (!tg) {
+    setStatus("Нет соединения с Telegram. Открой сканер через бота.");
+    return;
+  }
+
   const payload = {
     type: "check_in",
-    qr_payload: qrPayload,
-    init_data: tg.initData || ""
+    qr_payload: qrPayload
+    // init_data не используем, так как при запуске через KeyboardButton оно пустое
   };
 
   try {
     tg.sendData(JSON.stringify(payload));
     setStatus("Данные отправлены в бота. Вернись в чат — бот напишет результат.");
-    // Можно закрыть мини-апп через секунду, но не обязательно:
     setTimeout(() => {
       try {
         tg.close();
@@ -165,5 +180,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("stopBtn").addEventListener("click", () => {
     stopScan();
+  });
+
+  document.getElementById("zoomInBtn").addEventListener("click", () => {
+    zoom = Math.min(3.0, zoom + 0.2);
+    applyZoom();
+  });
+
+  document.getElementById("zoomOutBtn").addEventListener("click", () => {
+    zoom = Math.max(1.0, zoom - 0.2);
+    applyZoom();
   });
 });
