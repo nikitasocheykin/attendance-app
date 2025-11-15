@@ -32,21 +32,22 @@
     }
   }
 
-  const u = tg.initDataUnsafe?.user;
-  if (u) {
-    userInfoEl.innerHTML =
-      "Вы: <b>" +
-      (u.first_name || "") +
-      " " +
-      (u.last_name || "") +
-      "</b> @" +
-      (u.username || "") +
-      "<br />ID: " +
-      u.id;
-  } else {
-    userInfoEl.textContent =
-      "Не удалось получить данные пользователя из initData.";
-  }
+const u = tg.initDataUnsafe?.user;
+if (u) {
+  userInfoEl.innerHTML =
+    "Вы: <b>" +
+    (u.first_name || "") +
+    " " +
+    (u.last_name || "") +
+    "</b> @" +
+    (u.username || "") +
+    "<br />ID: " +
+    u.id;
+} else {
+  userInfoEl.innerHTML =
+    "WebApp запущен через кнопку клавиатуры.<br>" +
+    "initData недоступен — это нормально для такого режима.";
+}
 
   showPanel(roleParam);
 
