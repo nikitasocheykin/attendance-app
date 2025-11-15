@@ -1,122 +1,169 @@
-(function () {
-  const tg = window.Telegram.WebApp;
-  tg.expand();
+// main.js
 
-  const qrVideo = document.getElementById("qr-video");
-  const qrCanvas = document.getElementById("qr-canvas");
-  const qrStatus = document.getElementById("qr-status");
-  const btnStartQr = document.getElementById("btn-start-qr");
-  const qrZoomContainer = document.getElementById("qr-zoom-container");
-  const qrZoomSlider = document.getElementById("qr-zoom-slider");
+// Глобальные переменные
+let tg = window.Telegram.WebApp;
+let videoEl;
+let canvasEl;
+let canvasCtx;
+let stream = null;
+let scanInterval = null;
 
-  let qrStream = null;
-  let qrScanActive = false;
-  let qrPayload = null;
-  let qrVideoTrack = null;
+const statusEl = () => document.getElementById("status");
+const statusBoxEl = () => document.getElementById("statusBox");
+const authWarningEl = () => document.getElementById("authWarning");
+const resultBoxEl = () => document.getElementById("resultBox");
+const qrResultEl = () => document.getElementById("qrResult");
 
-  async function startQrScanner() {
-    try {
-      qrStatus.textContent = "Запрашиваем доступ к камере...";
-      qrVideo.classList.remove("hidden");
+function setStatus(text) {
+  statusEl().textContent = text;
+}
 
-      qrStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      qrVideo.srcObject = qrStream;
+function showAuthWarning() {
+  authWarningEl().classList.remove("hidden");
+}
 
-      qrVideoTrack = qrStream.getVideoTracks()[0];
-      const capabilities = qrVideoTrack.getCapabilities
-        ? qrVideoTrack.getCapabilities()
-        : {};
+function showResult(text) {
+  qrResultEl().textContent = text;
+  resultBoxEl().classList.remove("hidden");
+}
 
-      if (capabilities.zoom) {
-        qrZoomContainer.classList.remove("hidden");
-        const { min, max, step } = capabilities.zoom;
-        qrZoomSlider.min = min;
-        qrZoomSlider.max = max;
-        qrZoomSlider.step = step || 0.1;
-        qrZoomSlider.value = min;
-
-        qrZoomSlider.addEventListener("input", async () => {
-          try {
-            await qrVideoTrack.applyConstraints({
-              advanced: [{ zoom: parseFloat(qrZoomSlider.value) }],
-            });
-          } catch (e) {
-            console.warn("Не удалось применить zoom:", e);
-          }
-        });
-      } else {
-        qrZoomContainer.classList.add("hidden");
-      }
-
-      const canvas = qrCanvas;
-      const ctx = canvas.getContext("2d");
-
-      qrScanActive = true;
-      qrStatus.textContent = "Сканируйте QR-код...";
-
-      function tick() {
-        if (!qrScanActive) return;
-        if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
-          canvas.width = qrVideo.videoWidth;
-          canvas.height = qrVideo.videoHeight;
-          ctx.drawImage(qrVideo, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, canvas.width, canvas.height);
-          if (code) {
-            qrScanActive = false;
-            qrPayload = code.data;
-            qrStatus.textContent = "QR распознан, отправляем данные...";
-            stopQrScanner();
-            sendCheckIn();
-            return;
-          }
-        }
-        requestAnimationFrame(tick);
-      }
-
-      requestAnimationFrame(tick);
-    } catch (e) {
-      console.error(e);
-      qrStatus.textContent =
-        "Ошибка доступа к камере. Разреши доступ в браузере/Telegram.";
-    }
+// Инициализация WebApp
+function initTelegramWebApp() {
+  try {
+    tg.ready();
+    tg.expand();
+  } catch (e) {
+    console.error("Telegram WebApp not available:", e);
   }
 
-  function stopQrScanner() {
-    if (qrStream) {
-      qrStream.getTracks().forEach((t) => t.stop());
-      qrStream = null;
-      qrVideoTrack = null;
-    }
-    qrVideo.classList.add("hidden");
-    qrZoomContainer.classList.add("hidden");
+  // Проверим, что мини-апп реально открыт из Telegram (есть user)
+  if (!tg.initDataUnsafe || !tg.initDataUnsafe.user) {
+    showAuthWarning();
+    setStatus("WebApp не авторизован. Открой сканер через кнопку бота.");
+  } else {
+    setStatus("Нажми «Начать сканирование», затем наведи камеру на QR.");
   }
+}
 
-  function sendCheckIn() {
-    if (!qrPayload) {
-      tg.showPopup({
-        title: "Ошибка",
-        message: "QR-код не распознан.",
-        buttons: [{ id: "ok", type: "close", text: "Ок" }],
-      });
-      return;
-    }
+async function startScan() {
+  videoEl = document.getElementById("video");
+  canvasEl = document.getElementById("canvas");
+  canvasCtx = canvasEl.getContext("2d");
 
-    const data = {
-      type: "check_in",
-      qr_payload: qrPayload,
-      init_data: tg.initData || "",
-    };
-    tg.sendData(JSON.stringify(data));
-    tg.close();
-  }
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
 
-  if (btnStartQr) {
-    btnStartQr.addEventListener("click", () => {
-      qrPayload = null;
-      startQrScanner();
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  setStatus("Запрашиваем доступ к камере…");
+
+  try {
+    // Запрашиваем основную камеру (обычно задняя на телефоне)
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "environment"
+      },
+      audio: false
     });
+
+    videoEl.srcObject = stream;
+
+    await videoEl.play();
+    setStatus("Идёт сканирование… Наведи камеру на QR.");
+
+    // Настраиваем канвас под видео
+    canvasEl.width = videoEl.videoWidth || 640;
+    canvasEl.height = videoEl.videoHeight || 480;
+
+    // Запускаем цикл сканирования
+    scanInterval = setInterval(tickScan, 300);
+  } catch (err) {
+    console.error("Ошибка доступа к камере", err);
+    setStatus("Не удалось получить доступ к камере. Разреши камеру в настройках.");
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
   }
-})();
+}
+
+function stopScan() {
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+
+  if (scanInterval) {
+    clearInterval(scanInterval);
+    scanInterval = null;
+  }
+
+  if (stream) {
+    stream.getTracks().forEach((t) => t.stop());
+    stream = null;
+  }
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  setStatus("Сканирование остановлено.");
+}
+
+function tickScan() {
+  if (!videoEl || videoEl.readyState !== videoEl.HAVE_ENOUGH_DATA) {
+    return;
+  }
+
+  canvasEl.width = videoEl.videoWidth;
+  canvasEl.height = videoEl.videoHeight;
+
+  canvasCtx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+
+  const imageData = canvasCtx.getImageData(
+    0,
+    0,
+    canvasEl.width,
+    canvasEl.height
+  );
+  const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+  if (code && code.data) {
+    const qrText = code.data.trim();
+    stopScan();
+    showResult(qrText);
+    setStatus("QR-код распознан. Отправляем данные в бота…");
+    sendCheckInToBot(qrText);
+  }
+}
+
+function sendCheckInToBot(qrPayload) {
+  // Пакуем данные для бота
+  const payload = {
+    type: "check_in",
+    qr_payload: qrPayload,
+    init_data: tg.initData || ""
+  };
+
+  try {
+    tg.sendData(JSON.stringify(payload));
+    setStatus("Данные отправлены в бота. Вернись в чат — бот напишет результат.");
+    // Можно закрыть мини-апп через секунду, но не обязательно:
+    setTimeout(() => {
+      try {
+        tg.close();
+      } catch (e) {
+        console.warn("Не удалось закрыть WebApp:", e);
+      }
+    }, 1000);
+  } catch (err) {
+    console.error("Ошибка при отправке данных в бота через sendData:", err);
+    setStatus("Ошибка при отправке данных в бота. Попробуй ещё раз.");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initTelegramWebApp();
+
+  document.getElementById("startBtn").addEventListener("click", () => {
+    startScan();
+  });
+
+  document.getElementById("stopBtn").addEventListener("click", () => {
+    stopScan();
+  });
+});
